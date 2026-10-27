@@ -30,4 +30,17 @@ public class ReporteController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaHasta) {
         return ResponseEntity.ok(reporteService.consultar(psicologoId, fechaDesde, fechaHasta));
     }
+
+    @GetMapping(value = "/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize("@autorizacionService.puedeAccederPsicologo(#psicologoId)")
+    // HU33 | END27: genera la descarga PDF usando el mismo periodo del reporte general.
+    public ResponseEntity<byte[]> exportarPdf(
+            @PathVariable Long psicologoId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaHasta) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentDisposition(ContentDisposition.attachment().filename("reporte-aliviatech.pdf").build());
+        return ResponseEntity.ok().headers(headers)
+                .body(reporteService.exportarPdf(psicologoId, fechaDesde, fechaHasta));
+    }
 }

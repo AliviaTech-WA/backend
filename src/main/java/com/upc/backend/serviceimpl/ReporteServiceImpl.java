@@ -119,4 +119,47 @@ public class ReporteServiceImpl implements ReporteService {
                     + seguimiento.getIdPaciente().getUsuario().getApellidos();
         }
     }
+
+    @Override
+    // HU33 | END27: genera un PDF a partir del resultado calculado por END26.
+    public byte[] exportarPdf(Long psicologoId, LocalDate fechaDesde, LocalDate fechaHasta) {
+        ReporteGeneralDTO reporte = consultar(psicologoId, fechaDesde, fechaHasta);
+        try (PDDocument document = new PDDocument(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            PDPage page = new PDPage(PDRectangle.LETTER);
+            document.addPage(page);
+            try (PDPageContentStream content = new PDPageContentStream(document, page)) {
+                PDType1Font titulo = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
+                PDType1Font texto = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+                float y = 730;
+                y = escribir(content, titulo, 16, 60, y, "Reporte general de AliviaTech");
+                y = escribir(content, texto, 11, 60, y - 12, "Pacientes activos: " + reporte.getPacientesActivos());
+                y = escribir(content, texto, 11, 60, y, "Registros recibidos: " + reporte.getRegistrosRecibidos());
+                y = escribir(content, texto, 11, 60, y, "Episodios confirmados: " + reporte.getEpisodiosConfirmados());
+                y = escribir(content, texto, 11, 60, y, String.format("Promedio de registros por paciente: %.2f", reporte.getPromedioRegistrosPorPaciente()));
+                y = escribir(content, texto, 11, 60, y, String.format("Cobertura: %.2f%%", reporte.getCobertura().getPorcentaje()));
+                y = escribir(content, titulo, 13, 60, y - 12, "Actividad semanal");
+                for (ReporteGeneralDTO.ActividadSemanalDTO semana : reporte.getActividadSemanal()) {
+                    y = escribir(content, texto, 10, 70, y,
+                            "Semana " + semana.getSemana() + ": " + semana.getRegistros()
+                                    + " registros, " + semana.getEpisodios() + " episodios");
+                }
+            }
+            document.save(output);
+            return output.toByteArray();
+        }
+        catch (IOException ex) {
+            throw new IllegalStateException("No se pudo generar el reporte PDF.", ex);
+        }
+    }
+
+    // HU33: escribe una línea y devuelve la siguiente coordenada vertical del PDF.
+    private float escribir(PDPageContentStream content, PDType1Font fuente, float tamano,
+                           float x, float y, String texto) throws IOException {
+        content.beginText();
+        content.setFont(fuente, tamano);
+        content.newLineAtOffset(x, y);
+        content.showText(texto);
+        content.endText();
+        return y - 18;
+    }
 }
