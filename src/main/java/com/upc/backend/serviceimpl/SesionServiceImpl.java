@@ -7,9 +7,11 @@ import com.upc.backend.exceptions.ResourceNotFoundException;
 import com.upc.backend.repositories.SeguimientoRepositorio;
 import com.upc.backend.repositories.SesionRepositorio;
 import com.upc.backend.services.SesionService;
+import com.upc.backend.dtos.SesionResumenDTO;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
 
 import java.time.OffsetDateTime;
 @Service
@@ -37,6 +39,16 @@ public class SesionServiceImpl implements SesionService {
         sesion.setFechaRegistro(OffsetDateTime.now());
         sesion = sesionRepositorio.save(sesion);
         return new SesionCreadaDTO(sesion.getId(), sesion.getFechaSesion(), sesion.getFechaRegistro());
+    }
+    @Override
+    @Transactional(readOnly = true)
+    // HU19 y HU29 | END19: devuelve el historial sin exponer la nota interna.
+    public List<SesionResumenDTO> listar(Long pacienteId) {
+        Seguimiento seguimiento = buscarSeguimientoActivo(pacienteId);
+        return sesionRepositorio.findByIdSeguimiento_IdOrderByFechaSesionDesc(seguimiento.getId()).stream()
+                .map(sesion -> new SesionResumenDTO(sesion.getId(), sesion.getFechaSesion(),
+                        sesion.getResumenCompartido(), sesion.getRecomendacionCompartida()))
+                .toList();
     }
     // HU19, HU28 y HU29: localiza el seguimiento vigente usado por las operaciones de sesión.
     private Seguimiento buscarSeguimientoActivo(Long pacienteId) {
