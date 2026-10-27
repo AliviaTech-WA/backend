@@ -8,4 +8,6 @@ import java.time.LocalDate;
 public interface ReporteService {
     // HU32 | END26: calcula indicadores del periodo.
     ReporteGeneralDTO consultar(Long psicologoId, LocalDate fechaDesde, LocalDate fechaHasta);
+    // HU33 | END27: genera el PDF a partir del mismo cálculo.
+    byte[] exportarPdf(Long psicologoId, LocalDate fechaDesde, LocalDate fechaHasta);
 }
