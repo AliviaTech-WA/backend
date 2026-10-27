@@ -1,0 +1,15 @@
+package com.upc.backend.services;
+
+import com.upc.backend.dtos.ActualizarPsicologoPerfilRequestDTO;
+import com.upc.backend.dtos.PsicologoPerfilDTO;
+
+// HU01 y HU34: contrato de registro y gestión del perfil profesional.
+public interface PsicologoService {
+
+    // HU34 | END31: recupera el perfil profesional.
+    PsicologoPerfilDTO buscarPerfilPorId(Long psicologoId);
+
+    // HU34 | END32: actualiza los campos editables del perfil.
+    PsicologoPerfilDTO actualizarPerfil(Long psicologoId, ActualizarPsicologoPerfilRequestDTO request);
+
+}
