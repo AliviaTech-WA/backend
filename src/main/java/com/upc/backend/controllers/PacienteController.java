@@ -1,8 +1,7 @@
 package com.upc.backend.controllers;
-import com.upc.backend.dtos.RegistrarSesionRequestDTO;
-import com.upc.backend.dtos.SesionCreadaDTO;
+import com.upc.backend.dtos.*;
+import com.upc.backend.services.AnalisisIaService;
 import com.upc.backend.services.SesionService;
-import com.upc.backend.dtos.SesionResumenDTO;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,9 +18,13 @@ import java.util.List;
 public class PacienteController {
 
     private final SesionService sesionService;
+    private final AnalisisIaService analisisIaService;
 
-    public PacienteController(SesionService sesionService) {
+    public PacienteController(SesionService sesionService,
+                              AnalisisIaService analisisIaService ) {
         this.sesionService = sesionService;
+        this.analisisIaService = analisisIaService;
+
     }
 
     @PostMapping("/{pacienteId}/sesiones")
@@ -37,6 +40,15 @@ public class PacienteController {
     // HU19 y HU29 | END19: lista las sesiones compartidas del seguimiento activo.
     public ResponseEntity<List<SesionResumenDTO>> listarSesiones(@PathVariable Long pacienteId) {
         return ResponseEntity.ok(sesionService.listar(pacienteId));
+    }
+
+    @PostMapping("/{pacienteId}/analisis-ia")
+    @PreAuthorize("hasRole('PSICOLOGO') and @autorizacionService.puedeAccederPaciente(#pacienteId)")
+    // HU31 | END25: genera el análisis bajo demanda sin almacenar el resultado.
+    public ResponseEntity<AnalisisIaResponseDTO> generarAnalisis(
+            @PathVariable Long pacienteId,
+            @Valid @RequestBody GenerarAnalisisIaRequestDTO request) {
+            return ResponseEntity.ok(analisisIaService.generar(pacienteId, request));
     }
 
 }
