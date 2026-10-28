@@ -1,7 +1,9 @@
 package com.upc.backend.controllers;
+import com.upc.backend.dtos.ConsultaDispositivoAsignado;
 import com.upc.backend.dtos.RegistrarSesionRequestDTO;
 import com.upc.backend.dtos.SesionCreadaDTO;
 import com.upc.backend.services.SesionService;
+import com.upc.backend.services.DispositivoService;
 import com.upc.backend.dtos.SesionResumenDTO;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.OffsetDateTime;
 import java.util.List;
 
+
 @RestController
 @RequestMapping("/api/v1/pacientes")
 // Controlador compartido por las HU de bienestar, wearable, inicio, sesiones y perfil del paciente.
@@ -19,9 +22,11 @@ import java.util.List;
 public class PacienteController {
 
     private final SesionService sesionService;
+    private final DispositivoService dispositivoService;
 
-    public PacienteController(SesionService sesionService) {
+    public PacienteController(SesionService sesionService, DispositivoService dispositivoService) {
         this.sesionService = sesionService;
+        this.dispositivoService = dispositivoService;
     }
 
     @PostMapping("/{pacienteId}/sesiones")
@@ -38,6 +43,13 @@ public class PacienteController {
     public ResponseEntity<List<SesionResumenDTO>> listarSesiones(@PathVariable Long pacienteId) {
         return ResponseEntity.ok(sesionService.listar(pacienteId));
     }
+
+    @GetMapping("/{pacienteId}/dispositivo")
+    @PreAuthorize("@autorizacionService.puedeAccederPaciente(#pacienteId)")
+    public ResponseEntity<ConsultaDispositivoAsignado> consultarDispositivoAsignado(@PathVariable Long pacienteId) {
+        return ResponseEntity.ok(dispositivoService.consultarDispositivoAsignado(pacienteId));
+    } 
+    
 
 }
 
