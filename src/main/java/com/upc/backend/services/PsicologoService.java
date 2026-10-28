@@ -1,10 +1,15 @@
 package com.upc.backend.services;
 
 import com.upc.backend.dtos.ActualizarPsicologoPerfilRequestDTO;
+import com.upc.backend.dtos.CrearPsicologoRequestDTO;
+import com.upc.backend.dtos.PsicologoIdResponseDTO;
 import com.upc.backend.dtos.PsicologoPerfilDTO;
 
 // HU01 y HU34: contrato de registro y gestión del perfil profesional.
 public interface PsicologoService {
+
+    // HU01 | END01: registra usuario y perfil de psicólogo.
+    PsicologoIdResponseDTO crear(CrearPsicologoRequestDTO request);
 
     // HU34 | END31: recupera el perfil profesional.
     PsicologoPerfilDTO buscarPerfilPorId(Long psicologoId);
