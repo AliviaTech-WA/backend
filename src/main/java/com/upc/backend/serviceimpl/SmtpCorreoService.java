@@ -65,7 +65,28 @@ public class SmtpCorreoService implements CorreoService {
     }
 
     @Override
+    // HU05 | END04: envía por SMTP el código de recuperación con vigencia de diez minutos.
     public void enviarCodigoRecuperacion(String destinatario, String nombres, String codigo) {
-        throw new CorreoEnvioException("El envío de códigos de recuperación no está disponible.");
+        JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
+        if (!habilitado || mailSender == null || !StringUtils.hasText(remitente)
+                || !StringUtils.hasText(smtpHost) || !StringUtils.hasText(smtpUsuario)) {
+            throw new CorreoEnvioException(
+                    "No se envió el código de recuperación porque SMTP no está configurado.");
+        }
+
+        SimpleMailMessage mensaje = new SimpleMailMessage();
+        mensaje.setFrom(remitente);
+        mensaje.setTo(destinatario);
+        mensaje.setSubject("Código para recuperar tu contraseña | AliviaTech");
+        mensaje.setText("Hola, " + nombres + ".\n\n"
+                + "Tu código de recuperación es: " + codigo + "\n"
+                + "El código vence en 10 minutos y solo puede utilizarse una vez.");
+
+        try {
+            mailSender.send(mensaje);
+        } catch (MailException ex) {
+            throw new CorreoEnvioException(
+                    "El proveedor SMTP no pudo enviar el código de recuperación.", ex);
+        }
     }
 }
