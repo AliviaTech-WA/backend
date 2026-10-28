@@ -1,10 +1,11 @@
 package com.upc.backend.controllers;
-import com.upc.backend.dtos.ConsultaDispositivoAsignado;
-import com.upc.backend.dtos.RegistrarSesionRequestDTO;
-import com.upc.backend.dtos.SesionCreadaDTO;
+
+import com.upc.backend.dtos.*;
 import com.upc.backend.services.SesionService;
 import com.upc.backend.services.DispositivoService;
-import com.upc.backend.dtos.SesionResumenDTO;
+import com.upc.backend.services.AnalisisIaService;
+
+
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,10 +24,12 @@ public class PacienteController {
 
     private final SesionService sesionService;
     private final DispositivoService dispositivoService;
+    private final AnalisisIaService analisisIaService;
 
-    public PacienteController(SesionService sesionService, DispositivoService dispositivoService) {
+    public PacienteController(SesionService sesionService, DispositivoService dispositivoService, AnalisisIaService analisisIaService) {
         this.sesionService = sesionService;
         this.dispositivoService = dispositivoService;
+        this.analisisIaService = analisisIaService;
     }
 
     @PostMapping("/{pacienteId}/sesiones")
@@ -44,12 +47,20 @@ public class PacienteController {
         return ResponseEntity.ok(sesionService.listar(pacienteId));
     }
 
+    //HU14: Consultar dispositivo asignado al paciente
     @GetMapping("/{pacienteId}/dispositivo")
     @PreAuthorize("@autorizacionService.puedeAccederPaciente(#pacienteId)")
     public ResponseEntity<ConsultaDispositivoAsignado> consultarDispositivoAsignado(@PathVariable Long pacienteId) {
         return ResponseEntity.ok(dispositivoService.consultarDispositivoAsignado(pacienteId));
     } 
-    
 
+    @PostMapping("/{pacienteId}/analisis-ia")
+    @PreAuthorize("hasRole('PSICOLOGO') and @autorizacionService.puedeAccederPaciente(#pacienteId)")
+    // HU31 | END25: genera el análisis bajo demanda sin almacenar el resultado.
+    public ResponseEntity<AnalisisIaResponseDTO> generarAnalisis(
+            @PathVariable Long pacienteId,
+            @Valid @RequestBody GenerarAnalisisIaRequestDTO request) {
+            return ResponseEntity.ok(analisisIaService.generar(pacienteId, request));
+    }
 }
 
