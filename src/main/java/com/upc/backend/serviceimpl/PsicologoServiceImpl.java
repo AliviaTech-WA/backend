@@ -1,5 +1,7 @@
 package com.upc.backend.serviceimpl;
 import com.upc.backend.dtos.ActualizarPsicologoPerfilRequestDTO;
+import com.upc.backend.dtos.CrearPsicologoRequestDTO;
+import com.upc.backend.dtos.PsicologoIdResponseDTO;
 import com.upc.backend.dtos.PsicologoPerfilDTO;
 import com.upc.backend.entities.Psicologo;
 import com.upc.backend.entities.Usuario;
@@ -10,22 +12,57 @@ import com.upc.backend.repositories.PsicologoRepositorio;
 import com.upc.backend.repositories.UsuarioRepositorio;
 import com.upc.backend.services.PsicologoService;
 import org.modelmapper.ModelMapper;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
+
 @Service
 public class PsicologoServiceImpl implements PsicologoService {
+    private static final String ROL_PSICOLOGO = "PSICOLOGO";
+    private static final String ROL_PACIENTE = "PACIENTE";
     private final UsuarioRepositorio usuarioRepositorio;
     private final PsicologoRepositorio psicologoRepositorio;
     private final ModelMapper modelMapper;
+    private final PasswordEncoder passwordEncoder;
+
 
     public PsicologoServiceImpl(
             UsuarioRepositorio usuarioRepositorio,
             PsicologoRepositorio psicologoRepositorio,
-            ModelMapper modelMapper) {
+            ModelMapper modelMapper,
+            PasswordEncoder passwordEncoder) {
         this.usuarioRepositorio = usuarioRepositorio;
         this.psicologoRepositorio = psicologoRepositorio;
         this.modelMapper = modelMapper;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    @Override
+    @Transactional
+    // HU01 | END01: crea primero el usuario y luego el perfil profesional con el mismo identificador.
+    public PsicologoIdResponseDTO crear(CrearPsicologoRequestDTO request) {
+        validarDuplicidad(request.getDni(), request.getCorreo(), null);
+        if (psicologoRepositorio.existsByNumeroColegiatura(request.getNumeroColegiatura())) {
+            throw new ConflictException("El número de colegiatura ya está registrado.");
+        }
+
+        Usuario usuario = modelMapper.map(request, Usuario.class);
+        OffsetDateTime ahora = OffsetDateTime.now();
+        usuario.setId(null);
+        usuario.setRol(ROL_PSICOLOGO);
+        usuario.setPasswordHash(passwordEncoder.encode(request.getContrasena()));
+        usuario.setFechaCreacion(ahora);
+        usuario.setFechaActivacion(ahora);
+        usuario = usuarioRepositorio.save(usuario);
+
+        Psicologo psicologo = modelMapper.map(request, Psicologo.class);
+        psicologo.setId(null);
+        psicologo.setUsuario(usuario);
+        psicologoRepositorio.save(psicologo);
+
+        return new PsicologoIdResponseDTO(usuario.getId());
     }
 
     @Override
