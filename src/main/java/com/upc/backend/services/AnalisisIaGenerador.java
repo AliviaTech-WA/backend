@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 // HU31 | END25: contrato interno entre la agregación de datos y el modelo descriptivo.
-public interface AnalisisIaGenerator {
+public interface AnalisisIaGenerador {
     ResultadoGenerado generar(DatosAgregados datos);
 
     record DatosAgregados(String fuente,
