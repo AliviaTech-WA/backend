@@ -1,9 +1,6 @@
 package com.upc.backend.services;
 
-import com.upc.backend.dtos.ActualizarPsicologoPerfilRequestDTO;
-import com.upc.backend.dtos.CrearPsicologoRequestDTO;
-import com.upc.backend.dtos.PsicologoIdResponseDTO;
-import com.upc.backend.dtos.PsicologoPerfilDTO;
+import com.upc.backend.dtos.*;
 
 // HU01 y HU34: contrato de registro y gestión del perfil profesional.
 public interface PsicologoService {
@@ -16,5 +13,8 @@ public interface PsicologoService {
 
     // HU34 | END32: actualiza los campos editables del perfil.
     PsicologoPerfilDTO actualizarPerfil(Long psicologoId, ActualizarPsicologoPerfilRequestDTO request);
+
+    // HU02 | END24: crea al paciente pendiente y envía su invitación de activación.
+    RegistrarPacienteResponseDTO registrarPaciente(Long psicologoId, RegistrarPacienteRequestDTO request);
 
 }
