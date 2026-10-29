@@ -4,6 +4,7 @@ import com.upc.backend.dtos.SincronizacionWearableRequestDTO;
 import com.upc.backend.dtos.SincronizacionWearableResponseDTO;
 import com.upc.backend.services.DispositivoService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +23,6 @@ public class DispositivoController {
     public ResponseEntity<SincronizacionWearableResponseDTO> sincronizar(
             @PathVariable Long dispositivoId,
             @Valid @RequestBody SincronizacionWearableRequestDTO request) {
-        return ResponseEntity.ok(dispositivoService.sincronizar(dispositivoId, request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(dispositivoService.sincronizar(dispositivoId, request));
     }
 }

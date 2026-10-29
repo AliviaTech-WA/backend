@@ -18,7 +18,7 @@ import java.time.ZoneId;
 public class WearableSimuladorProgramado {
     private static final Logger log = LoggerFactory.getLogger(WearableSimuladorProgramado.class);
     private static final ZoneId ZONA_LIMA = ZoneId.of("America/Lima");
-    private static final String ESTADO_VINCULADA = "VINCULADA";
+    private static final String ESTADO_VINCULADA = "ACTIVO";
 
     private final DispositivoRepositorio dispositivoRepositorio;
     private final WearableSimuladorService simuladorService;
