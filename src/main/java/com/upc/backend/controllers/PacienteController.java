@@ -1,6 +1,7 @@
 package com.upc.backend.controllers;
 
 import com.upc.backend.dtos.*;
+import com.upc.backend.services.RegistroBienestarService;
 import com.upc.backend.services.SesionService;
 import com.upc.backend.services.DispositivoService;
 import com.upc.backend.services.AnalisisIaService;
@@ -12,7 +13,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.OffsetDateTime;
 import java.util.List;
 
 
@@ -25,11 +25,26 @@ public class PacienteController {
     private final SesionService sesionService;
     private final DispositivoService dispositivoService;
     private final AnalisisIaService analisisIaService;
-
-    public PacienteController(SesionService sesionService, DispositivoService dispositivoService, AnalisisIaService analisisIaService) {
+    private final RegistroBienestarService registroBienestarService;
+  
+    public PacienteController(SesionService sesionService,
+                              AnalisisIaService analisisIaService,
+                              RegistroBienestarService registroBienestarService,
+                              DispositivoService dispositivoService) {
         this.sesionService = sesionService;
         this.dispositivoService = dispositivoService;
         this.analisisIaService = analisisIaService;
+        this.registroBienestarService = registroBienestarService;
+    }
+
+    @PostMapping("/{pacienteId}/registros-bienestar")
+    @PreAuthorize("@autorizacionService.esMismoUsuario(#pacienteId)")
+    public ResponseEntity<RegistroBienestarResponseDTO> registrarBienestar(
+            @PathVariable Long pacienteId,
+            @Valid @RequestBody RegistrarBienestarRequestDTO request) {
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(registroBienestarService.registrar(pacienteId, request));
     }
 
     @PostMapping("/{pacienteId}/sesiones")
