@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @RestController
@@ -31,12 +32,23 @@ public class PacienteController {
 
     @PostMapping("/{pacienteId}/registros-bienestar")
     @PreAuthorize("@autorizacionService.esMismoUsuario(#pacienteId)")
+    // HU09 | END08: registra el bienestar informado por el propio paciente.
     public ResponseEntity<RegistroBienestarResponseDTO> registrarBienestar(
             @PathVariable Long pacienteId,
             @Valid @RequestBody RegistrarBienestarRequestDTO request) {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(registroBienestarService.registrar(pacienteId, request));
+    }
+
+    @GetMapping("/{pacienteId}/registros-bienestar")
+    @PreAuthorize("@autorizacionService.puedeAccederPaciente(#pacienteId)")
+    // HU10 y HU25 | END09: consulta los registros de bienestar del paciente con filtros opcionales.
+    public ResponseEntity<List<RegistroBienestarDetalleDTO>> listarBienestar(
+            @PathVariable Long pacienteId,
+            @RequestParam(required = false) OffsetDateTime fechaDesde,
+            @RequestParam(required = false) OffsetDateTime fechaHasta) {
+        return ResponseEntity.ok(registroBienestarService.listar(pacienteId, fechaDesde, fechaHasta));
     }
 
     @PostMapping("/{pacienteId}/sesiones")
