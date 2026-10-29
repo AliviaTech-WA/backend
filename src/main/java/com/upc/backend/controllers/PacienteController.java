@@ -8,6 +8,7 @@ import com.upc.backend.services.AnalisisIaService;
 
 
 import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,7 +20,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/pacientes")
 // Controlador compartido por las HU de bienestar, wearable, inicio, sesiones y perfil del paciente.
-
 public class PacienteController {
 
     private final SesionService sesionService;
@@ -77,5 +77,14 @@ public class PacienteController {
             @Valid @RequestBody GenerarAnalisisIaRequestDTO request) {
             return ResponseEntity.ok(analisisIaService.generar(pacienteId, request));
     }
+
+    //HU15: Renombrar dispositivo asignado al paciente
+    @PatchMapping("/{pacienteId}/dispositivo/alias")
+    @PreAuthorize("@autorizacionService.esMismoUsuario(#pacienteId)")
+    public ResponseEntity<ConsultaDispositivoAsignado> renombrarDispositivoAsignado(
+            @PathVariable Long pacienteId,
+            @Valid @RequestBody RenombrarDispositivoDesignado request) {
+        return ResponseEntity.ok(dispositivoService.renombrarDispositivoAsignado(request.getAlias(), pacienteId));
+    } 
 }
 

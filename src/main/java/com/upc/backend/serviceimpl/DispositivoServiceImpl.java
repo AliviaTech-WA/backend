@@ -1,6 +1,7 @@
 package com.upc.backend.serviceimpl;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.upc.backend.dtos.ConsultaDispositivoAsignado;
 import com.upc.backend.entities.Dispositivo;
@@ -43,6 +44,43 @@ public class DispositivoServiceImpl implements DispositivoService {
         dto.setFechaAsignacion(dispositivo.getFechaAsignacion());
         dto.setFechaUltimaSincronizacion(
                 dispositivo.getFechaUltimaSincronizacion()
+        );
+
+        // 4. Devolver el DTO
+        return dto;
+    }
+    @Override 
+    @Transactional 
+    public ConsultaDispositivoAsignado renombrarDispositivoAsignado(String alias, Long pacienteId) {
+
+        // 1. Validar el alias
+        if (alias == null || alias.trim().isEmpty()) {
+            throw new IllegalArgumentException("El alias no puede estar vacío.");
+        }
+        String aliasLimpio = alias.trim();
+        if (aliasLimpio.length() > 100) {
+            throw new IllegalArgumentException("El alias no puede superar 100 caracteres.");
+        }
+        
+        Dispositivo dispositivo = dispositivoRepositorio
+                .findFirstByIdPaciente_IdAndEstadoIgnoreCaseAndFechaRetiroIsNull(pacienteId, "ACTIVO")
+                .orElseThrow(() -> new RuntimeException(
+                        "El paciente no tiene un dispositivo asignado."
+                ));
+        
+        // 3. Actualizar y guardar en la base de datos
+        dispositivo.setAlias(aliasLimpio);
+        Dispositivo actualizado = dispositivoRepositorio.save(dispositivo);
+
+        ConsultaDispositivoAsignado dto = new ConsultaDispositivoAsignado();
+        dto.setNombrePaciente(actualizado.getIdPaciente().getUsuario().getNombres());
+        dto.setCodigoDispositivo(actualizado.getCodigoDispositivo());
+        dto.setModelo(actualizado.getModelo());
+        dto.setEstado(actualizado.getEstado());
+        dto.setAlias(actualizado.getAlias());
+        dto.setFechaAsignacion(actualizado.getFechaAsignacion());
+        dto.setFechaUltimaSincronizacion(
+                actualizado.getFechaUltimaSincronizacion()
         );
 
         // 4. Devolver el DTO

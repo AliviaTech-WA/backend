@@ -4,4 +4,6 @@ import com.upc.backend.dtos.ConsultaDispositivoAsignado;
 public interface DispositivoService {
     
     ConsultaDispositivoAsignado consultarDispositivoAsignado(Long pacienteId);
+
+    ConsultaDispositivoAsignado renombrarDispositivoAsignado(String alias, Long pacienteId);
 }
