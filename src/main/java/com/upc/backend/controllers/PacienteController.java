@@ -1,6 +1,7 @@
 package com.upc.backend.controllers;
 import com.upc.backend.dtos.*;
 import com.upc.backend.services.AnalisisIaService;
+import com.upc.backend.services.PacienteService;
 import com.upc.backend.services.RegistroBienestarService;
 import com.upc.backend.services.SesionService;
 import jakarta.validation.Valid;
@@ -21,13 +22,16 @@ public class PacienteController {
     private final SesionService sesionService;
     private final AnalisisIaService analisisIaService;
     private final RegistroBienestarService registroBienestarService;
+    private final PacienteService pacienteService;
 
     public PacienteController(SesionService sesionService,
                               AnalisisIaService analisisIaService,
-                              RegistroBienestarService registroBienestarService ) {
+                              RegistroBienestarService registroBienestarService,
+                              PacienteService pacienteService) {
         this.sesionService = sesionService;
         this.analisisIaService = analisisIaService;
         this.registroBienestarService = registroBienestarService;
+        this.pacienteService = pacienteService;
     }
 
     @PostMapping("/{pacienteId}/registros-bienestar")
@@ -49,6 +53,13 @@ public class PacienteController {
             @RequestParam(required = false) OffsetDateTime fechaDesde,
             @RequestParam(required = false) OffsetDateTime fechaHasta) {
         return ResponseEntity.ok(registroBienestarService.listar(pacienteId, fechaDesde, fechaHasta));
+    }
+
+    @GetMapping("/{pacienteId}/inicio")
+    @PreAuthorize("@autorizacionService.esMismoUsuario(#pacienteId)")
+    // HU08 | END16: compone el resumen mostrado al paciente al ingresar.
+    public ResponseEntity<InicioPacienteDTO> consultarInicio(@PathVariable Long pacienteId) {
+        return ResponseEntity.ok(pacienteService.consultarInicio(pacienteId));
     }
 
     @PostMapping("/{pacienteId}/sesiones")
