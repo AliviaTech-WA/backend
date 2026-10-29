@@ -1,6 +1,7 @@
 package com.upc.backend.controllers;
 import com.upc.backend.dtos.*;
 import com.upc.backend.services.AnalisisIaService;
+import com.upc.backend.services.RegistroBienestarService;
 import com.upc.backend.services.SesionService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -19,12 +20,24 @@ public class PacienteController {
 
     private final SesionService sesionService;
     private final AnalisisIaService analisisIaService;
+    private final RegistroBienestarService registroBienestarService;
 
     public PacienteController(SesionService sesionService,
-                              AnalisisIaService analisisIaService ) {
+                              AnalisisIaService analisisIaService,
+                              RegistroBienestarService registroBienestarService ) {
         this.sesionService = sesionService;
         this.analisisIaService = analisisIaService;
+        this.registroBienestarService = registroBienestarService;
+    }
 
+    @PostMapping("/{pacienteId}/registros-bienestar")
+    @PreAuthorize("@autorizacionService.esMismoUsuario(#pacienteId)")
+    public ResponseEntity<RegistroBienestarResponseDTO> registrarBienestar(
+            @PathVariable Long pacienteId,
+            @Valid @RequestBody RegistrarBienestarRequestDTO request) {
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(registroBienestarService.registrar(pacienteId, request));
     }
 
     @PostMapping("/{pacienteId}/sesiones")
