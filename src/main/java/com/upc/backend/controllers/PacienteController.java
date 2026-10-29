@@ -1,8 +1,12 @@
 package com.upc.backend.controllers;
+
 import com.upc.backend.dtos.*;
-import com.upc.backend.services.AnalisisIaService;
 import com.upc.backend.services.RegistroBienestarService;
 import com.upc.backend.services.SesionService;
+import com.upc.backend.services.DispositivoService;
+import com.upc.backend.services.AnalisisIaService;
+
+
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+
 @RestController
 @RequestMapping("/api/v1/pacientes")
 // Controlador compartido por las HU de bienestar, wearable, inicio, sesiones y perfil del paciente.
@@ -18,13 +23,16 @@ import java.util.List;
 public class PacienteController {
 
     private final SesionService sesionService;
+    private final DispositivoService dispositivoService;
     private final AnalisisIaService analisisIaService;
     private final RegistroBienestarService registroBienestarService;
-
+  
     public PacienteController(SesionService sesionService,
                               AnalisisIaService analisisIaService,
-                              RegistroBienestarService registroBienestarService ) {
+                              RegistroBienestarService registroBienestarService,
+                              DispositivoService dispositivoService) {
         this.sesionService = sesionService;
+        this.dispositivoService = dispositivoService;
         this.analisisIaService = analisisIaService;
         this.registroBienestarService = registroBienestarService;
     }
@@ -54,6 +62,13 @@ public class PacienteController {
         return ResponseEntity.ok(sesionService.listar(pacienteId));
     }
 
+    //HU14: Consultar dispositivo asignado al paciente
+    @GetMapping("/{pacienteId}/dispositivo")
+    @PreAuthorize("@autorizacionService.puedeAccederPaciente(#pacienteId)")
+    public ResponseEntity<ConsultaDispositivoAsignado> consultarDispositivoAsignado(@PathVariable Long pacienteId) {
+        return ResponseEntity.ok(dispositivoService.consultarDispositivoAsignado(pacienteId));
+    } 
+
     @PostMapping("/{pacienteId}/analisis-ia")
     @PreAuthorize("hasRole('PSICOLOGO') and @autorizacionService.puedeAccederPaciente(#pacienteId)")
     // HU31 | END25: genera el análisis bajo demanda sin almacenar el resultado.
@@ -62,6 +77,5 @@ public class PacienteController {
             @Valid @RequestBody GenerarAnalisisIaRequestDTO request) {
             return ResponseEntity.ok(analisisIaService.generar(pacienteId, request));
     }
-
 }
 
