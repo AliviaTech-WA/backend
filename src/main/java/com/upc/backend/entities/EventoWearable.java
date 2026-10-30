@@ -2,10 +2,9 @@ package com.upc.backend.entities;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
-
+import com.upc.backend.enums.EstadoConfirmacionEventos;
 import java.time.OffsetDateTime;
 
 @Getter
@@ -35,10 +34,9 @@ public class EventoWearable {
     @Column(name = "descripcion_variacion", length = Integer.MAX_VALUE)
     private String descripcionVariacion;
 
-    @Size(max = 20)
-    @NotNull
-    @Column(name = "estado_confirmacion", nullable = false, length = 20)
-    private String estadoConfirmacion;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = true , name = "estado_confirmacion")
+    private EstadoConfirmacionEventos estadoConfirmacion;
 
     @Column(name = "fecha_respuesta")
     private OffsetDateTime fechaRespuesta;
