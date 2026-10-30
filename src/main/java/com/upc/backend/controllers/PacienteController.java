@@ -4,6 +4,7 @@ import com.upc.backend.services.AnalisisIaService;
 import com.upc.backend.services.PacienteService;
 import com.upc.backend.services.RegistroBienestarService;
 import com.upc.backend.services.SesionService;
+import com.upc.backend.services.EventoWearableService;
 
 import com.upc.backend.services.DispositivoService;
 
@@ -27,19 +28,22 @@ public class PacienteController {
     private final AnalisisIaService analisisIaService;
     private final RegistroBienestarService registroBienestarService;
     private final PacienteService pacienteService;
+    private final EventoWearableService eventoWearableService;
 
     public PacienteController(
             SesionService sesionService,
             AnalisisIaService analisisIaService,
             RegistroBienestarService registroBienestarService,
             DispositivoService dispositivoService,
-            PacienteService pacienteService) {
+            PacienteService pacienteService,
+            EventoWearableService eventoWearableService) {
 
         this.sesionService = sesionService;
         this.analisisIaService = analisisIaService;
         this.registroBienestarService = registroBienestarService;
         this.dispositivoService = dispositivoService;
         this.pacienteService = pacienteService;
+        this.eventoWearableService = eventoWearableService;
     }
 
     @PostMapping("/{pacienteId}/registros-bienestar")
@@ -109,5 +113,41 @@ public class PacienteController {
             @Valid @RequestBody RenombrarDispositivoDesignado request) {
         return ResponseEntity.ok(dispositivoService.renombrarDispositivoAsignado(request.getAlias(), pacienteId));
     }
+
+    //HU16: Responder evento wearable del paciente
+    @PatchMapping("/{pacienteId}/eventos/{eventoId}/respuesta")
+    public ResponseEntity<EventoWearableResponseDTO> responderEvento(
+            @PathVariable Long pacienteId,
+            @PathVariable Long eventoId,
+            @Valid @RequestBody EventoWearableRequestDTO request) {
+
+        EventoWearableResponseDTO response = eventoWearableService.responderEventoWearable(
+                pacienteId,
+                eventoId,
+                request.getEstadoConfirmacion(),
+                request.getContexto()
+        );
+
+        return ResponseEntity.ok(response);
+    }
+    
+    //HU17: Consultar eventos respondidos del paciente
+    @GetMapping("/{pacienteId}/eventos/historial")
+    public ResponseEntity<List<EventoWearableResponseDTO>> obtenerEventosRespondidos(
+            @PathVariable Long pacienteId) {
+
+        List<EventoWearableResponseDTO> response = eventoWearableService.obtenerEventosRespondidos(pacienteId);
+        return ResponseEntity.ok(response);
+    }
+
+    //HU16: Una vez respondido el evento se consulta los eventos pendientes del paciente, para actualizar el front.
+    @GetMapping("/{pacienteId}/eventos/pendientes")
+    public ResponseEntity<List<EventoWearableResponseDTO>> obtenerEventosPendientes(
+            @PathVariable Long pacienteId) {
+
+        List<EventoWearableResponseDTO> response = eventoWearableService.obtenerEventosPendientes(pacienteId);
+        return ResponseEntity.ok(response);
+    }
 }
+
 

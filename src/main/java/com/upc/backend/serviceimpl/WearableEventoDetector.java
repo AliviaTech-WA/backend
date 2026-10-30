@@ -14,7 +14,6 @@ import java.util.List;
 // HU13: centraliza la deteccion de episodios para END10 y para el simulador programado.
 public class WearableEventoDetector {
     private static final short UMBRAL_ALTO = 110;
-    private static final String PENDIENTE = "PENDIENTE";
     private static final String DESCRIPCION =
             "Variacion de frecuencia cardiaca superior a 110 lpm; pendiente de confirmacion.";
 
@@ -73,7 +72,6 @@ public class WearableEventoDetector {
         evento.setFechaHoraInicio(lectura.getFechaHora());
         evento.setFechaHoraFin(lectura.getFechaHora());
         evento.setDescripcionVariacion(DESCRIPCION);
-        evento.setEstadoConfirmacion(PENDIENTE);
         return eventoRepositorio.save(evento);
     }
 }
