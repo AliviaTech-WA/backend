@@ -5,6 +5,8 @@ import com.upc.backend.entities.EventoWearable;
 import com.upc.backend.entities.LecturaWearable;
 import com.upc.backend.repositories.EventoWearableRepositorio;
 import com.upc.backend.repositories.LecturaWearableRepositorio;
+import com.upc.backend.services.NotificacionService;
+
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
@@ -19,11 +21,14 @@ public class WearableEventoDetector {
 
     private final LecturaWearableRepositorio lecturaRepositorio;
     private final EventoWearableRepositorio eventoRepositorio;
+    private final NotificacionService notificacionService;
 
     public WearableEventoDetector(LecturaWearableRepositorio lecturaRepositorio,
-                                  EventoWearableRepositorio eventoRepositorio) {
+                                  EventoWearableRepositorio eventoRepositorio,
+                                  NotificacionService notificacionService) {
         this.lecturaRepositorio = lecturaRepositorio;
         this.eventoRepositorio = eventoRepositorio;
+        this.notificacionService = notificacionService;
     }
 
     // HU13: crea un evento al iniciar el tramo alto y solo extiende el mismo mientras permanezca alto.
@@ -72,6 +77,20 @@ public class WearableEventoDetector {
         evento.setFechaHoraInicio(lectura.getFechaHora());
         evento.setFechaHoraFin(lectura.getFechaHora());
         evento.setDescripcionVariacion(DESCRIPCION);
+
+        //esta parte es para que el paciente reciba la notificación de que tiene un evento pendiente por responder
+        //==============================
+        Long idUsuarioPaciente = dispositivo.getIdPaciente().getId();
+        String nombrePaciente = dispositivo.getIdPaciente().getUsuario().getNombres();
+
+        notificacionService.crearNotificacion(
+                idUsuarioPaciente,
+                "Nuevo evento detectado",
+                "Hola " + nombrePaciente + " tienes un evento nuevo que requiere tu confirmacion.",
+                "EVENTO"
+        );
+        //==============================
+
         return eventoRepositorio.save(evento);
     }
 }
