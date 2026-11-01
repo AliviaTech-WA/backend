@@ -2,11 +2,13 @@ package com.upc.backend.serviceimpl;
 
 import com.upc.backend.dtos.DashboardPsicologoDTO;
 import com.upc.backend.dtos.PacienteSeguimientoListaDTO;
+import com.upc.backend.dtos.ResumenSeguimientoPacienteDTO;
 import com.upc.backend.entities.EventoWearable;
 import com.upc.backend.entities.Paciente;
 import com.upc.backend.entities.RegistroBienestar;
 import com.upc.backend.entities.ResumenWearableDiario;
 import com.upc.backend.entities.Seguimiento;
+import com.upc.backend.entities.Sesion;
 import com.upc.backend.entities.Usuario;
 import com.upc.backend.enums.EstadoConfirmacionEventos;
 import com.upc.backend.exceptions.InvalidRequestException;
@@ -17,6 +19,7 @@ import com.upc.backend.repositories.PsicologoRepositorio;
 import com.upc.backend.repositories.RegistroBienestarRepositorio;
 import com.upc.backend.repositories.ResumenWearableDiarioRepositorio;
 import com.upc.backend.repositories.SeguimientoRepositorio;
+import com.upc.backend.repositories.SesionRepositorio;
 import com.upc.backend.services.SeguimientoConsultaService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,8 +31,12 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 // HU22-HU24 | END21-END23: centraliza novedades, actividad y métricas del seguimiento.
@@ -48,19 +55,22 @@ public class SeguimientoConsultaServiceImpl implements SeguimientoConsultaServic
     private final EventoWearableRepositorio eventoRepositorio;
     private final LecturaWearableRepositorio lecturaRepositorio;
     private final ResumenWearableDiarioRepositorio resumenDiarioRepositorio;
+    private final SesionRepositorio sesionRepositorio;
 
     public SeguimientoConsultaServiceImpl(PsicologoRepositorio psicologoRepositorio,
                                            SeguimientoRepositorio seguimientoRepositorio,
                                            RegistroBienestarRepositorio registroRepositorio,
                                            EventoWearableRepositorio eventoRepositorio,
                                            LecturaWearableRepositorio lecturaRepositorio,
-                                           ResumenWearableDiarioRepositorio resumenDiarioRepositorio) {
+                                           ResumenWearableDiarioRepositorio resumenDiarioRepositorio,
+                                           SesionRepositorio sesionRepositorio) {
         this.psicologoRepositorio = psicologoRepositorio;
         this.seguimientoRepositorio = seguimientoRepositorio;
         this.registroRepositorio = registroRepositorio;
         this.eventoRepositorio = eventoRepositorio;
         this.lecturaRepositorio = lecturaRepositorio;
         this.resumenDiarioRepositorio = resumenDiarioRepositorio;
+        this.sesionRepositorio = sesionRepositorio;
     }
 
     @Override
@@ -89,6 +99,28 @@ public class SeguimientoConsultaServiceImpl implements SeguimientoConsultaServic
                 .sorted(comparador(ordenLista))
                 .map(this::aFilaLista)
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    // HU24 | END23: calcula con la revisión anterior y solo después registra la revisión actual.
+    public ResumenSeguimientoPacienteDTO consultarResumen(Long pacienteId) {
+        Seguimiento seguimiento = seguimientoRepositorio
+                .findFirstByIdPaciente_IdAndFechaFinIsNullOrderByIdDesc(pacienteId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No se encontró un seguimiento activo para el paciente con ID " + pacienteId + "."));
+        OffsetDateTime ahora = OffsetDateTime.now(ZONA_NEGOCIO);
+        OffsetDateTime revisionAnterior = seguimiento.getFechaUltimaConsulta();
+        EstadoPaciente estado = calcularEstado(seguimiento, ahora, true, true);
+        Sesion ultimaSesion = sesionRepositorio
+                .findFirstByIdSeguimiento_IdOrderByFechaSesionDesc(seguimiento.getId())
+                .orElse(null);
+
+        ResumenSeguimientoPacienteDTO respuesta = construirResumen(
+                estado, revisionAnterior, ultimaSesion == null ? null : ultimaSesion.getFechaSesion());
+        seguimiento.setFechaUltimaConsulta(ahora);
+        seguimientoRepositorio.save(seguimiento);
+        return respuesta;
     }
 
     @Override
@@ -190,6 +222,49 @@ public class SeguimientoConsultaServiceImpl implements SeguimientoConsultaServic
         return new EstadoPaciente(seguimiento, paciente, desdeRevision, novedad, fechaNovedad,
                 registrosNuevos.size(), lecturasNuevas, episodiosNuevos.size(), ultimoRegistro,
                 ultimoEpisodio, registrosPeriodo, resumenesPeriodo, episodios);
+    }
+
+    // HU24 | END23: compone los datos permitidos y el resumen diario de los últimos siete días.
+    private ResumenSeguimientoPacienteDTO construirResumen(EstadoPaciente estado,
+                                                            OffsetDateTime revisionAnterior,
+                                                            OffsetDateTime ultimaSesion) {
+        Paciente paciente = estado.paciente();
+        Usuario usuario = paciente.getUsuario();
+        List<ResumenSeguimientoPacienteDTO.UltimoRegistroDTO> registros = estado.registrosPeriodo().stream()
+                .map(registro -> new ResumenSeguimientoPacienteDTO.UltimoRegistroDTO(
+                        registro.getFechaHora(), registro.getNivelAnsiedad(),
+                        registro.getEstadoAnimo(), registro.getComentario()))
+                .toList();
+
+        List<Double> ansiedades = estado.registrosPeriodo().stream()
+                .map(registro -> registro.getNivelAnsiedad().doubleValue()).toList();
+        Map<LocalDate, List<RegistroBienestar>> registrosPorDia = estado.registrosPeriodo().stream()
+                .collect(Collectors.groupingBy(registro -> fechaLocal(registro.getFechaHora())));
+        Map<LocalDate, List<ResumenWearableDiario>> resumenesPorDia = estado.resumenesPeriodo().stream()
+                .collect(Collectors.groupingBy(ResumenWearableDiario::getFecha));
+        Set<LocalDate> fechas = new LinkedHashSet<>();
+        fechas.addAll(registrosPorDia.keySet());
+        fechas.addAll(resumenesPorDia.keySet());
+        List<ResumenSeguimientoPacienteDTO.DiaResumenDTO> dias = fechas.stream().sorted()
+                .map(fecha -> new ResumenSeguimientoPacienteDTO.DiaResumenDTO(
+                        fecha,
+                        promedio(registrosPorDia.getOrDefault(fecha, List.of()).stream()
+                                .map(registro -> registro.getNivelAnsiedad().doubleValue()).toList()),
+                        promedio(resumenesPorDia.getOrDefault(fecha, List.of()).stream()
+                                .map(resumen -> resumen.getMinutosSueno() / 60.0).toList())))
+                .toList();
+        List<Double> suenoPorDia = dias.stream().map(ResumenSeguimientoPacienteDTO.DiaResumenDTO::getHorasSueno)
+                .filter(valor -> valor != null).toList();
+
+        return new ResumenSeguimientoPacienteDTO(
+                paciente.getId(), estado.seguimiento().getId(), nombreCompleto(paciente), usuario.getDni(),
+                paciente.getFechaNacimiento(), "ACTIVO", estado.seguimiento().getFechaInicio(),
+                revisionAnterior,
+                new ResumenSeguimientoPacienteDTO.NovedadesDTO(
+                        estado.registrosNuevos(), estado.lecturasNuevas(), estado.episodiosNuevos()),
+                ultimaSesion, estado.fechaUltimoEpisodio(), registros,
+                new ResumenSeguimientoPacienteDTO.ResumenPeriodoDTO(
+                        promedio(ansiedades), promedio(suenoPorDia), dias));
     }
 
     // HU22 | END21: genera una serie diaria real; los ceros representan ausencia de actividad.
@@ -325,6 +400,14 @@ public class SeguimientoConsultaServiceImpl implements SeguimientoConsultaServic
             case NUEVOS_REGISTROS -> 1;
             default -> 2;
         };
+    }
+
+    private Double promedio(List<Double> valores) {
+        if (valores.isEmpty()) {
+            return null;
+        }
+        double valor = valores.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+        return Math.round(valor * 10.0) / 10.0;
     }
 
     private String normalizarTexto(String texto) {
