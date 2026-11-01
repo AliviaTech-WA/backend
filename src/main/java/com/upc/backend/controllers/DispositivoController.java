@@ -1,11 +1,13 @@
 package com.upc.backend.controllers;
 
+import com.upc.backend.dtos.DatosWearableDTO;
 import com.upc.backend.dtos.SincronizacionWearableRequestDTO;
 import com.upc.backend.dtos.SincronizacionWearableResponseDTO;
 import com.upc.backend.services.DispositivoService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -24,5 +26,12 @@ public class DispositivoController {
             @PathVariable Long dispositivoId,
             @Valid @RequestBody SincronizacionWearableRequestDTO request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(dispositivoService.sincronizar(dispositivoId, request));
+    }
+
+    @GetMapping("/{dispositivoId}/lecturas")
+    @PreAuthorize("@autorizacionService.puedeAccederDispositivo(#dispositivoId)")
+    // HU26 | END11: consulta métricas, evolución y lecturas recientes del wearable.
+    public ResponseEntity<DatosWearableDTO> consultarDatos(@PathVariable Long dispositivoId) {
+        return ResponseEntity.ok(dispositivoService.consultarDatos(dispositivoId));
     }
 }
