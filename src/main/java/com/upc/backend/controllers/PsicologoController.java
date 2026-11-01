@@ -3,6 +3,7 @@ package com.upc.backend.controllers;
 import com.upc.backend.dtos.ActualizarPsicologoPerfilRequestDTO;
 import com.upc.backend.dtos.CrearPsicologoRequestDTO;
 import com.upc.backend.dtos.DashboardPsicologoDTO;
+import com.upc.backend.dtos.PacienteSeguimientoListaDTO;
 import com.upc.backend.dtos.PsicologoIdResponseDTO;
 import com.upc.backend.dtos.PsicologoPerfilDTO;
 import com.upc.backend.dtos.RegistrarPacienteRequestDTO;
@@ -10,10 +11,14 @@ import com.upc.backend.dtos.RegistrarPacienteResponseDTO;
 import com.upc.backend.services.PsicologoService;
 import com.upc.backend.services.SeguimientoConsultaService;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/psicologos")
@@ -65,5 +70,19 @@ public class PsicologoController {
     // HU22 | END21: consulta los indicadores del dashboard sin modificar revisiones.
     public ResponseEntity<DashboardPsicologoDTO> consultarDashboard(@PathVariable Long psicologoId) {
         return ResponseEntity.ok(seguimientoConsultaService.consultarDashboard(psicologoId));
+    }
+
+    @GetMapping("/{psicologoId}/pacientes")
+    @PreAuthorize("@autorizacionService.puedeAccederPsicologo(#psicologoId)")
+    // HU23 | END22: lista los pacientes y sus novedades sin actualizar la última revisión.
+    public ResponseEntity<List<PacienteSeguimientoListaDTO>> listarPacientes(
+            @PathVariable Long psicologoId,
+            @RequestParam(required = false) String busqueda,
+            @RequestParam(required = false) String novedad,
+            @RequestParam(required = false) String orden,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaEpisodioDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaEpisodioHasta) {
+        return ResponseEntity.ok(seguimientoConsultaService.listarPacientes(
+                psicologoId, busqueda, novedad, orden, fechaEpisodioDesde, fechaEpisodioHasta));
     }
 }

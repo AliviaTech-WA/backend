@@ -1,12 +1,15 @@
 package com.upc.backend.serviceimpl;
 
 import com.upc.backend.dtos.DashboardPsicologoDTO;
+import com.upc.backend.dtos.PacienteSeguimientoListaDTO;
 import com.upc.backend.entities.EventoWearable;
 import com.upc.backend.entities.Paciente;
 import com.upc.backend.entities.RegistroBienestar;
 import com.upc.backend.entities.ResumenWearableDiario;
 import com.upc.backend.entities.Seguimiento;
+import com.upc.backend.entities.Usuario;
 import com.upc.backend.enums.EstadoConfirmacionEventos;
+import com.upc.backend.exceptions.InvalidRequestException;
 import com.upc.backend.exceptions.ResourceNotFoundException;
 import com.upc.backend.repositories.EventoWearableRepositorio;
 import com.upc.backend.repositories.LecturaWearableRepositorio;
@@ -18,6 +21,7 @@ import com.upc.backend.services.SeguimientoConsultaService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -25,6 +29,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 // HU22-HU24 | END21-END23: centraliza novedades, actividad y métricas del seguimiento.
@@ -56,6 +61,34 @@ public class SeguimientoConsultaServiceImpl implements SeguimientoConsultaServic
         this.eventoRepositorio = eventoRepositorio;
         this.lecturaRepositorio = lecturaRepositorio;
         this.resumenDiarioRepositorio = resumenDiarioRepositorio;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    // HU23 | END22: lista, busca, filtra y ordena sin modificar la última revisión.
+    public List<PacienteSeguimientoListaDTO> listarPacientes(Long psicologoId,
+                                                             String busqueda,
+                                                             String novedad,
+                                                             String orden,
+                                                             LocalDate fechaEpisodioDesde,
+                                                             LocalDate fechaEpisodioHasta) {
+        validarPsicologo(psicologoId);
+        validarRango(fechaEpisodioDesde, fechaEpisodioHasta);
+        String filtroNovedad = normalizarNovedad(novedad);
+        OrdenLista ordenLista = OrdenLista.desde(orden);
+        OffsetDateTime ahora = OffsetDateTime.now(ZONA_NEGOCIO);
+        String textoBusqueda = busqueda == null || busqueda.isBlank()
+                ? null : normalizarTexto(busqueda);
+
+        return seguimientoRepositorio.findByIdPsicologo_IdAndFechaFinIsNull(psicologoId).stream()
+                .map(seguimiento -> calcularEstado(seguimiento, ahora, false, false))
+                .filter(estado -> coincideBusqueda(estado, textoBusqueda))
+                .filter(estado -> filtroNovedad == null || filtroNovedad.equals(estado.novedad()))
+                .filter(estado -> episodioEnRango(
+                        estado.episodiosConfirmados(), fechaEpisodioDesde, fechaEpisodioHasta))
+                .sorted(comparador(ordenLista))
+                .map(this::aFilaLista)
+                .toList();
     }
 
     @Override
@@ -209,6 +242,119 @@ public class SeguimientoConsultaServiceImpl implements SeguimientoConsultaServic
 
     private String nombreCompleto(Paciente paciente) {
         return paciente.getUsuario().getNombres() + " " + paciente.getUsuario().getApellidos();
+    }
+
+    private PacienteSeguimientoListaDTO aFilaLista(EstadoPaciente estado) {
+        Usuario usuario = estado.paciente().getUsuario();
+        return new PacienteSeguimientoListaDTO(
+                estado.paciente().getId(), estado.seguimiento().getId(), usuario.getNombres(),
+                usuario.getApellidos(), usuario.getDni(), estado.novedad(),
+                estado.fechaUltimoRegistro(), estado.fechaUltimoEpisodio());
+    }
+
+    private Comparator<EstadoPaciente> comparador(OrdenLista orden) {
+        Comparator<EstadoPaciente> nombre = Comparator
+                .comparing((EstadoPaciente e) -> normalizarTexto(e.paciente().getUsuario().getApellidos()))
+                .thenComparing(e -> normalizarTexto(e.paciente().getUsuario().getNombres()));
+        Comparator<OffsetDateTime> fechas = Comparator.nullsLast(Comparator.naturalOrder());
+        return switch (orden) {
+            case NOMBRE_ASC -> nombre;
+            case NOMBRE_DESC -> nombre.reversed();
+            case ULTIMO_REGISTRO_ASC -> Comparator.comparing(EstadoPaciente::fechaUltimoRegistro, fechas)
+                    .thenComparing(nombre);
+            case ULTIMO_REGISTRO_DESC -> Comparator
+                    .comparing(EstadoPaciente::fechaUltimoRegistro,
+                            Comparator.nullsLast(Comparator.reverseOrder()))
+                    .thenComparing(nombre);
+            case ULTIMO_EPISODIO_ASC -> Comparator.comparing(EstadoPaciente::fechaUltimoEpisodio, fechas)
+                    .thenComparing(nombre);
+            case ULTIMO_EPISODIO_DESC -> Comparator
+                    .comparing(EstadoPaciente::fechaUltimoEpisodio,
+                            Comparator.nullsLast(Comparator.reverseOrder()))
+                    .thenComparing(nombre);
+            case NOVEDAD -> Comparator.comparingInt((EstadoPaciente e) -> prioridad(e.novedad()))
+                    .thenComparing(EstadoPaciente::fechaNovedad,
+                            Comparator.nullsLast(Comparator.reverseOrder()))
+                    .thenComparing(nombre);
+        };
+    }
+
+    private boolean coincideBusqueda(EstadoPaciente estado, String busqueda) {
+        if (busqueda == null) {
+            return true;
+        }
+        Usuario usuario = estado.paciente().getUsuario();
+        return normalizarTexto(usuario.getNombres() + " " + usuario.getApellidos()).contains(busqueda)
+                || normalizarTexto(usuario.getApellidos() + " " + usuario.getNombres()).contains(busqueda)
+                || usuario.getDni().contains(busqueda);
+    }
+
+    private boolean episodioEnRango(List<EventoWearable> episodios,
+                                    LocalDate desde,
+                                    LocalDate hasta) {
+        if (desde == null && hasta == null) {
+            return true;
+        }
+        return episodios.stream().map(EventoWearable::getFechaHoraInicio).map(this::fechaLocal)
+                .anyMatch(fecha -> (desde == null || !fecha.isBefore(desde))
+                        && (hasta == null || !fecha.isAfter(hasta)));
+    }
+
+    private void validarRango(LocalDate desde, LocalDate hasta) {
+        if (desde != null && hasta != null && desde.isAfter(hasta)) {
+            throw new InvalidRequestException(
+                    "fechaEpisodioDesde no puede ser posterior a fechaEpisodioHasta.");
+        }
+    }
+
+    private String normalizarNovedad(String novedad) {
+        if (novedad == null || novedad.isBlank()) {
+            return null;
+        }
+        String valor = novedad.trim().toUpperCase(Locale.ROOT);
+        if (!NUEVOS_EPISODIOS.equals(valor) && !NUEVOS_REGISTROS.equals(valor)
+                && !SIN_NOVEDADES.equals(valor)) {
+            throw new InvalidRequestException("El filtro novedad no es válido.");
+        }
+        return valor;
+    }
+
+    private int prioridad(String novedad) {
+        return switch (novedad) {
+            case NUEVOS_EPISODIOS -> 0;
+            case NUEVOS_REGISTROS -> 1;
+            default -> 2;
+        };
+    }
+
+    private String normalizarTexto(String texto) {
+        if (texto == null || texto.isBlank()) {
+            return "";
+        }
+        return Normalizer.normalize(texto.trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT);
+    }
+
+    private enum OrdenLista {
+        NOMBRE_ASC,
+        NOMBRE_DESC,
+        ULTIMO_REGISTRO_ASC,
+        ULTIMO_REGISTRO_DESC,
+        ULTIMO_EPISODIO_ASC,
+        ULTIMO_EPISODIO_DESC,
+        NOVEDAD;
+
+        private static OrdenLista desde(String valor) {
+            if (valor == null || valor.isBlank()) {
+                return NOMBRE_ASC;
+            }
+            try {
+                return valueOf(valor.trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ex) {
+                throw new InvalidRequestException("El criterio orden no es válido.");
+            }
+        }
     }
 
     // HU22-HU24: resultado interno común; evita repetir reglas entre los tres endpoints.
