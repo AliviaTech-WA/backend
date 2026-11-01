@@ -1,6 +1,7 @@
 package com.upc.backend.repositories;
 
 import com.upc.backend.entities.EventoWearable;
+import com.upc.backend.enums.EstadoConfirmacionEventos;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -29,7 +30,7 @@ public interface EventoWearableRepositorio extends JpaRepository<EventoWearable,
 
     // HU18 y HU27 | END15-END17: filtra eventos por estado de confirmación.
     List<EventoWearable> findByIdDispositivo_IdPaciente_IdAndEstadoConfirmacionOrderByFechaHoraInicioDesc(
-            Long pacienteId, String estadoConfirmacion);
+            Long pacienteId, EstadoConfirmacionEventos estadoConfirmacion);
 
     // HU08 | END16: selecciona el evento pendiente más reciente.
     Optional<EventoWearable> findFirstByIdDispositivo_IdPaciente_IdAndEstadoConfirmacionOrderByFechaHoraInicioDesc(

@@ -2,11 +2,13 @@ package com.upc.backend.controllers;
 
 import com.upc.backend.dtos.ActualizarPsicologoPerfilRequestDTO;
 import com.upc.backend.dtos.CrearPsicologoRequestDTO;
+import com.upc.backend.dtos.DashboardPsicologoDTO;
 import com.upc.backend.dtos.PsicologoIdResponseDTO;
 import com.upc.backend.dtos.PsicologoPerfilDTO;
 import com.upc.backend.dtos.RegistrarPacienteRequestDTO;
 import com.upc.backend.dtos.RegistrarPacienteResponseDTO;
 import com.upc.backend.services.PsicologoService;
+import com.upc.backend.services.SeguimientoConsultaService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,9 +20,12 @@ import org.springframework.web.bind.annotation.*;
 // HU34: gestión del perfil profesional del psicólogo.
 public class PsicologoController {
     private final PsicologoService psicologoService;
+    private final SeguimientoConsultaService seguimientoConsultaService;
 
-    public PsicologoController(PsicologoService psicologoService) {
+    public PsicologoController(PsicologoService psicologoService,
+                               SeguimientoConsultaService seguimientoConsultaService) {
         this.psicologoService = psicologoService;
+        this.seguimientoConsultaService = seguimientoConsultaService;
     }
 
     @PostMapping
@@ -55,4 +60,10 @@ public class PsicologoController {
                 .body(psicologoService.registrarPaciente(psicologoId, request));
     }
 
+    @GetMapping("/{psicologoId}/resumen-seguimiento")
+    @PreAuthorize("@autorizacionService.puedeAccederPsicologo(#psicologoId)")
+    // HU22 | END21: consulta los indicadores del dashboard sin modificar revisiones.
+    public ResponseEntity<DashboardPsicologoDTO> consultarDashboard(@PathVariable Long psicologoId) {
+        return ResponseEntity.ok(seguimientoConsultaService.consultarDashboard(psicologoId));
+    }
 }
