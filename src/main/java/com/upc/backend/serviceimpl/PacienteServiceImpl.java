@@ -2,6 +2,7 @@ package com.upc.backend.serviceimpl;
 
 import com.upc.backend.dtos.*;
 import com.upc.backend.entities.*;
+import com.upc.backend.enums.EstadoConfirmacionEventos;
 import com.upc.backend.exceptions.ConflictException;
 import com.upc.backend.exceptions.InvalidRequestException;
 import com.upc.backend.exceptions.ResourceNotFoundException;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
@@ -44,6 +46,12 @@ public class PacienteServiceImpl implements PacienteService {
 
     @Autowired
     private ModelMapper modelMapper;
+
+    @Autowired
+    private LecturaWearableRepositorio lecturaRepositorio;
+
+    @Autowired
+    private ResumenWearableDiarioRepositorio resumenRepositorio;
 
     @Override
     @Transactional(readOnly = true)
@@ -154,6 +162,33 @@ public class PacienteServiceImpl implements PacienteService {
         if (request.getTelefono() != null && request.getTelefono().isBlank()) {
             throw new InvalidRequestException("El teléfono no puede estar vacío.");
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    // HU27 | END15: el psicólogo solo ve los eventos que el paciente confirmó como episodio.
+    public List<EventoPacienteDTO> listarEpisodiosConfirmados(Long pacienteId) {
+        buscarPaciente(pacienteId);
+        return eventoRepositorio
+                .findByIdDispositivo_IdPaciente_IdAndEstadoConfirmacionOrderByFechaHoraInicioDesc(
+                        pacienteId, EstadoConfirmacionEventos.SI)
+                .stream().map(this::convertirEvento).toList();
+    }
+
+    // HU27: agrega la frecuencia máxima del episodio y el sueño de la noche anterior.
+    private EventoPacienteDTO convertirEvento(EventoWearable evento) {
+        List<LecturaWearable> lecturas = lecturaRepositorio.findByIdDispositivo_IdAndFechaHoraBetween(
+                evento.getIdDispositivo().getId(), evento.getFechaHoraInicio(), evento.getFechaHoraFin());
+        Short maxima = lecturas.stream().map(LecturaWearable::getFrecuenciaCardiaca)
+                .max(Short::compareTo).orElse(null);
+        ResumenWearableDiario resumenPrevio = resumenRepositorio
+                .findByIdDispositivo_IdAndFecha(evento.getIdDispositivo().getId(),
+                        evento.getFechaHoraInicio().toLocalDate().minusDays(1))
+                .orElse(null);
+        Double horasSueno = resumenPrevio == null ? null : resumenPrevio.getMinutosSueno() / 60.0;
+        return new EventoPacienteDTO(evento.getId(), evento.getFechaHoraInicio(), evento.getFechaHoraFin(),
+                Duration.between(evento.getFechaHoraInicio(), evento.getFechaHoraFin()).toMinutes(),
+                maxima, horasSueno, null, evento.getEstadoConfirmacion().name(), evento.getContextoPaciente());
     }
 
     // Infraestructura compartida de paciente: centraliza la búsqueda y la respuesta 404.

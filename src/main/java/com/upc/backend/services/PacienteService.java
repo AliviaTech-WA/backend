@@ -2,10 +2,13 @@ package com.upc.backend.services;
 
 import com.upc.backend.dtos.ActualizarPacientePerfilRequestDTO;
 import com.upc.backend.dtos.ContactoEmergenciaResponseDTO;
+import com.upc.backend.dtos.EventoPacienteDTO;
 import com.upc.backend.dtos.GuardarContactoEmergenciaRequestDTO;
 import com.upc.backend.dtos.InicioPacienteDTO;
 import com.upc.backend.dtos.PacientePerfilActualizadoDTO;
 import com.upc.backend.dtos.PacientePerfilDTO;
+
+import java.util.List;
 
 // Servicio compartido por las HU de inicio, eventos, notificaciones y perfil del paciente.
 public interface PacienteService {
@@ -21,4 +24,6 @@ public interface PacienteService {
     // HU21 | END30: crea o actualiza el contacto único.
     ContactoEmergenciaResponseDTO guardarContacto(Long pacienteId, GuardarContactoEmergenciaRequestDTO request);
 
+    // HU27 | END15: episodios confirmados del paciente para el psicólogo.
+    List<EventoPacienteDTO> listarEpisodiosConfirmados(Long pacienteId);
 }

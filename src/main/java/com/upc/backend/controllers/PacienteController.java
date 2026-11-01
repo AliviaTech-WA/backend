@@ -185,4 +185,11 @@ public class PacienteController {
             @PathVariable Long pacienteId) {
         return ResponseEntity.ok(seguimientoConsultaService.consultarResumen(pacienteId));
     }
+
+    @GetMapping("/{pacienteId}/eventos/confirmados")
+    @PreAuthorize("hasRole('PSICOLOGO') and @autorizacionService.puedeAccederPaciente(#pacienteId)")
+    // HU27 | END15: lista los episodios confirmados del paciente para el psicólogo responsable.
+    public ResponseEntity<List<EventoPacienteDTO>> listarEpisodiosConfirmados(@PathVariable Long pacienteId) {
+        return ResponseEntity.ok(pacienteService.listarEpisodiosConfirmados(pacienteId));
+    }
 }
