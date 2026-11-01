@@ -148,6 +148,29 @@ public class PacienteController {
         List<EventoWearableResponseDTO> response = eventoWearableService.obtenerEventosPendientes(pacienteId);
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/{pacienteId}/perfil")
+    @PreAuthorize("@autorizacionService.esMismoUsuario(#pacienteId)")
+    // HU21 | END28: consulta los datos personales y el contacto de emergencia.
+    public ResponseEntity<PacientePerfilDTO> buscarPerfil(@PathVariable Long pacienteId) {
+        return ResponseEntity.ok(pacienteService.buscarPerfil(pacienteId));
+    }
+
+    @PutMapping("/{pacienteId}/perfil")
+    @PreAuthorize("@autorizacionService.esMismoUsuario(#pacienteId)")
+    // HU21 | END29: actualiza correo y teléfono del paciente autenticado.
+    public ResponseEntity<PacientePerfilActualizadoDTO> actualizarPerfil(
+            @PathVariable Long pacienteId,
+            @Valid @RequestBody ActualizarPacientePerfilRequestDTO request) {
+        return ResponseEntity.ok(pacienteService.actualizarPerfil(pacienteId, request));
+    }
+
+    @PutMapping("/{pacienteId}/contacto-emergencia")
+    @PreAuthorize("@autorizacionService.esMismoUsuario(#pacienteId)")
+    // HU21 | END30: crea o actualiza el contacto de emergencia único del paciente.
+    public ResponseEntity<ContactoEmergenciaResponseDTO> guardarContacto(
+            @PathVariable Long pacienteId,
+            @Valid @RequestBody GuardarContactoEmergenciaRequestDTO request) {
+        return ResponseEntity.ok(pacienteService.guardarContacto(pacienteId, request));
+    }
 }
-
-
