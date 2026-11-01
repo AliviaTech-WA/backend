@@ -4,6 +4,7 @@ import com.upc.backend.services.AnalisisIaService;
 import com.upc.backend.services.PacienteService;
 import com.upc.backend.services.RegistroBienestarService;
 import com.upc.backend.services.SesionService;
+import com.upc.backend.services.SeguimientoConsultaService;
 import com.upc.backend.services.EventoWearableService;
 
 import com.upc.backend.services.DispositivoService;
@@ -29,6 +30,7 @@ public class PacienteController {
     private final RegistroBienestarService registroBienestarService;
     private final PacienteService pacienteService;
     private final EventoWearableService eventoWearableService;
+    private final SeguimientoConsultaService seguimientoConsultaService;
 
     public PacienteController(
             SesionService sesionService,
@@ -36,7 +38,8 @@ public class PacienteController {
             RegistroBienestarService registroBienestarService,
             DispositivoService dispositivoService,
             PacienteService pacienteService,
-            EventoWearableService eventoWearableService) {
+            EventoWearableService eventoWearableService,
+            SeguimientoConsultaService seguimientoConsultaService) {
 
         this.sesionService = sesionService;
         this.analisisIaService = analisisIaService;
@@ -44,6 +47,7 @@ public class PacienteController {
         this.dispositivoService = dispositivoService;
         this.pacienteService = pacienteService;
         this.eventoWearableService = eventoWearableService;
+        this.seguimientoConsultaService = seguimientoConsultaService;
     }
 
     @PostMapping("/{pacienteId}/registros-bienestar")
@@ -172,5 +176,13 @@ public class PacienteController {
             @PathVariable Long pacienteId,
             @Valid @RequestBody GuardarContactoEmergenciaRequestDTO request) {
         return ResponseEntity.ok(pacienteService.guardarContacto(pacienteId, request));
+    }
+
+    @GetMapping("/{pacienteId}/resumen-seguimiento")
+    @PreAuthorize("hasRole('PSICOLOGO') and @autorizacionService.puedeAccederPaciente(#pacienteId)")
+    // HU24 | END23: devuelve el resumen al psicólogo y registra la revisión después del cálculo.
+    public ResponseEntity<ResumenSeguimientoPacienteDTO> consultarResumenSeguimiento(
+            @PathVariable Long pacienteId) {
+        return ResponseEntity.ok(seguimientoConsultaService.consultarResumen(pacienteId));
     }
 }

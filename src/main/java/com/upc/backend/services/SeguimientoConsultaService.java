@@ -2,6 +2,7 @@ package com.upc.backend.services;
 
 import com.upc.backend.dtos.DashboardPsicologoDTO;
 import com.upc.backend.dtos.PacienteSeguimientoListaDTO;
+import com.upc.backend.dtos.ResumenSeguimientoPacienteDTO;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -19,4 +20,7 @@ public interface SeguimientoConsultaService {
                                                       String orden,
                                                       LocalDate fechaEpisodioDesde,
                                                       LocalDate fechaEpisodioHasta);
+
+    // HU24 | END23: resumen del paciente; registra la revisión del psicólogo.
+    ResumenSeguimientoPacienteDTO consultarResumen(Long pacienteId);
 }
