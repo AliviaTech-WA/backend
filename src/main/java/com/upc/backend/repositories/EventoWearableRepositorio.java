@@ -1,6 +1,7 @@
 package com.upc.backend.repositories;
 
 import com.upc.backend.entities.EventoWearable;
+import com.upc.backend.enums.EstadoConfirmacionEventos;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -18,9 +19,18 @@ public interface EventoWearableRepositorio extends JpaRepository<EventoWearable,
     // HU12 y HU17 | END15: historial completo del paciente.
     List<EventoWearable> findByIdDispositivo_IdPaciente_IdOrderByFechaHoraInicioDesc(Long pacienteId);
 
+    // HU16: Busca el evento puntual asegurando que pertenezca al paciente y esté pendiente (null)
+    Optional<EventoWearable> findByIdAndIdDispositivo_IdPaciente_IdAndEstadoConfirmacionIsNull(Long id_evento, Long pacienteId);
+
+    // HU16: recupera eventos pendientes para el paciente.
+    List<EventoWearable> findByIdDispositivo_IdPaciente_IdAndEstadoConfirmacionIsNullOrderByFechaHoraInicioDesc(Long pacienteId);
+
+    // HU17: recupera lista de eventos respondidos del paciente.
+    List<EventoWearable> findByIdDispositivo_IdPaciente_IdAndEstadoConfirmacionIsNotNullOrderByFechaHoraInicioDesc(Long pacienteId);
+
     // HU18 y HU27 | END15-END17: filtra eventos por estado de confirmación.
     List<EventoWearable> findByIdDispositivo_IdPaciente_IdAndEstadoConfirmacionOrderByFechaHoraInicioDesc(
-            Long pacienteId, String estadoConfirmacion);
+            Long pacienteId, EstadoConfirmacionEventos estadoConfirmacion);
 
     // HU08 | END16: selecciona el evento pendiente más reciente.
     Optional<EventoWearable> findFirstByIdDispositivo_IdPaciente_IdAndEstadoConfirmacionOrderByFechaHoraInicioDesc(

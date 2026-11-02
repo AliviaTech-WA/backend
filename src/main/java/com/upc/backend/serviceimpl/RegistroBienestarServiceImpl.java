@@ -12,6 +12,7 @@ import com.upc.backend.services.RegistroBienestarService;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.upc.backend.services.NotificacionService;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -22,13 +23,16 @@ public class RegistroBienestarServiceImpl implements RegistroBienestarService {
     private final PacienteRepositorio pacienteRepositorio;
     private final RegistroBienestarRepositorio registroBienestarRepositorio;
     private final ModelMapper modelMapper;
+    private final NotificacionService notificacionService;
 
     public RegistroBienestarServiceImpl(PacienteRepositorio pacienteRepositorio,
                                         RegistroBienestarRepositorio registroBienestarRepositorio,
-                                        ModelMapper modelMapper) {
+                                        ModelMapper modelMapper,
+                                        NotificacionService notificacionService) {
         this.pacienteRepositorio = pacienteRepositorio;
         this.registroBienestarRepositorio = registroBienestarRepositorio;
         this.modelMapper = modelMapper;
+        this.notificacionService = notificacionService;
     }
 
     @Override
@@ -44,6 +48,18 @@ public class RegistroBienestarServiceImpl implements RegistroBienestarService {
         registro.setIdPaciente(paciente);
         registro.setFechaHora(OffsetDateTime.now());
         registro = registroBienestarRepositorio.save(registro);
+
+        //esta parte es para que el paciente reciba la notificación de que tiene un evento bienestar registrado
+        //==============================
+        String nombrePaciente = paciente.getUsuario().getNombres();
+
+        notificacionService.crearNotificacion(
+                pacienteId,
+                "Nuevo registro de bienestar",
+                "Hola " + nombrePaciente + " acabas de registrar un nuevo evento de bienestar. Por favor revisa tu historial para más detalles.",
+                "REGISTRO_BIENESTAR"
+        );
+        //==============================
 
         RegistroBienestarResponseDTO response = modelMapper.map(registro, RegistroBienestarResponseDTO.class);
         response.setRegistroId(registro.getId());

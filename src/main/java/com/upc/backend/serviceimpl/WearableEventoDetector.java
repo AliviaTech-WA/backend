@@ -5,6 +5,8 @@ import com.upc.backend.entities.EventoWearable;
 import com.upc.backend.entities.LecturaWearable;
 import com.upc.backend.repositories.EventoWearableRepositorio;
 import com.upc.backend.repositories.LecturaWearableRepositorio;
+import com.upc.backend.services.NotificacionService;
+
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
@@ -14,17 +16,19 @@ import java.util.List;
 // HU13: centraliza la deteccion de episodios para END10 y para el simulador programado.
 public class WearableEventoDetector {
     private static final short UMBRAL_ALTO = 110;
-    private static final String PENDIENTE = "PENDIENTE";
     private static final String DESCRIPCION =
             "Variacion de frecuencia cardiaca superior a 110 lpm; pendiente de confirmacion.";
 
     private final LecturaWearableRepositorio lecturaRepositorio;
     private final EventoWearableRepositorio eventoRepositorio;
+    private final NotificacionService notificacionService;
 
     public WearableEventoDetector(LecturaWearableRepositorio lecturaRepositorio,
-                                  EventoWearableRepositorio eventoRepositorio) {
+                                  EventoWearableRepositorio eventoRepositorio,
+                                  NotificacionService notificacionService) {
         this.lecturaRepositorio = lecturaRepositorio;
         this.eventoRepositorio = eventoRepositorio;
+        this.notificacionService = notificacionService;
     }
 
     // HU13: crea un evento al iniciar el tramo alto y solo extiende el mismo mientras permanezca alto.
@@ -73,7 +77,20 @@ public class WearableEventoDetector {
         evento.setFechaHoraInicio(lectura.getFechaHora());
         evento.setFechaHoraFin(lectura.getFechaHora());
         evento.setDescripcionVariacion(DESCRIPCION);
-        evento.setEstadoConfirmacion(PENDIENTE);
+
+        //esta parte es para que el paciente reciba la notificación de que tiene un evento pendiente por responder
+        //==============================
+        Long idUsuarioPaciente = dispositivo.getIdPaciente().getId();
+        String nombrePaciente = dispositivo.getIdPaciente().getUsuario().getNombres();
+
+        notificacionService.crearNotificacion(
+                idUsuarioPaciente,
+                "Nuevo evento detectado",
+                "Hola " + nombrePaciente + " tienes un evento nuevo que requiere tu confirmacion.",
+                "EVENTO"
+        );
+        //==============================
+
         return eventoRepositorio.save(evento);
     }
 }

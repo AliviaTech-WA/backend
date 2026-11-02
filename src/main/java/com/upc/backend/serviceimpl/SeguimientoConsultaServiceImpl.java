@@ -1,0 +1,458 @@
+package com.upc.backend.serviceimpl;
+
+import com.upc.backend.dtos.DashboardPsicologoDTO;
+import com.upc.backend.dtos.PacienteSeguimientoListaDTO;
+import com.upc.backend.dtos.ResumenSeguimientoPacienteDTO;
+import com.upc.backend.entities.EventoWearable;
+import com.upc.backend.entities.Paciente;
+import com.upc.backend.entities.RegistroBienestar;
+import com.upc.backend.entities.ResumenWearableDiario;
+import com.upc.backend.entities.Seguimiento;
+import com.upc.backend.entities.Sesion;
+import com.upc.backend.entities.Usuario;
+import com.upc.backend.enums.EstadoConfirmacionEventos;
+import com.upc.backend.exceptions.InvalidRequestException;
+import com.upc.backend.exceptions.ResourceNotFoundException;
+import com.upc.backend.repositories.EventoWearableRepositorio;
+import com.upc.backend.repositories.LecturaWearableRepositorio;
+import com.upc.backend.repositories.PsicologoRepositorio;
+import com.upc.backend.repositories.RegistroBienestarRepositorio;
+import com.upc.backend.repositories.ResumenWearableDiarioRepositorio;
+import com.upc.backend.repositories.SeguimientoRepositorio;
+import com.upc.backend.repositories.SesionRepositorio;
+import com.upc.backend.services.SeguimientoConsultaService;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.text.Normalizer;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@Service
+// HU22-HU24 | END21-END23: centraliza novedades, actividad y métricas del seguimiento.
+public class SeguimientoConsultaServiceImpl implements SeguimientoConsultaService {
+
+    private static final ZoneId ZONA_NEGOCIO = ZoneId.of("America/Lima");
+    // Un episodio confirmado es un evento que el paciente respondió con SI.
+    private static final EstadoConfirmacionEventos CONFIRMADO = EstadoConfirmacionEventos.SI;
+    private static final String NUEVOS_EPISODIOS = "NUEVOS_EPISODIOS";
+    private static final String NUEVOS_REGISTROS = "NUEVOS_REGISTROS";
+    private static final String SIN_NOVEDADES = "SIN_NOVEDADES";
+
+    private final PsicologoRepositorio psicologoRepositorio;
+    private final SeguimientoRepositorio seguimientoRepositorio;
+    private final RegistroBienestarRepositorio registroRepositorio;
+    private final EventoWearableRepositorio eventoRepositorio;
+    private final LecturaWearableRepositorio lecturaRepositorio;
+    private final ResumenWearableDiarioRepositorio resumenDiarioRepositorio;
+    private final SesionRepositorio sesionRepositorio;
+
+    public SeguimientoConsultaServiceImpl(PsicologoRepositorio psicologoRepositorio,
+                                           SeguimientoRepositorio seguimientoRepositorio,
+                                           RegistroBienestarRepositorio registroRepositorio,
+                                           EventoWearableRepositorio eventoRepositorio,
+                                           LecturaWearableRepositorio lecturaRepositorio,
+                                           ResumenWearableDiarioRepositorio resumenDiarioRepositorio,
+                                           SesionRepositorio sesionRepositorio) {
+        this.psicologoRepositorio = psicologoRepositorio;
+        this.seguimientoRepositorio = seguimientoRepositorio;
+        this.registroRepositorio = registroRepositorio;
+        this.eventoRepositorio = eventoRepositorio;
+        this.lecturaRepositorio = lecturaRepositorio;
+        this.resumenDiarioRepositorio = resumenDiarioRepositorio;
+        this.sesionRepositorio = sesionRepositorio;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    // HU23 | END22: lista, busca, filtra y ordena sin modificar la última revisión.
+    public List<PacienteSeguimientoListaDTO> listarPacientes(Long psicologoId,
+                                                             String busqueda,
+                                                             String novedad,
+                                                             String orden,
+                                                             LocalDate fechaEpisodioDesde,
+                                                             LocalDate fechaEpisodioHasta) {
+        validarPsicologo(psicologoId);
+        validarRango(fechaEpisodioDesde, fechaEpisodioHasta);
+        String filtroNovedad = normalizarNovedad(novedad);
+        OrdenLista ordenLista = OrdenLista.desde(orden);
+        OffsetDateTime ahora = OffsetDateTime.now(ZONA_NEGOCIO);
+        String textoBusqueda = busqueda == null || busqueda.isBlank()
+                ? null : normalizarTexto(busqueda);
+
+        return seguimientoRepositorio.findByIdPsicologo_IdAndFechaFinIsNull(psicologoId).stream()
+                .map(seguimiento -> calcularEstado(seguimiento, ahora, false, false))
+                .filter(estado -> coincideBusqueda(estado, textoBusqueda))
+                .filter(estado -> filtroNovedad == null || filtroNovedad.equals(estado.novedad()))
+                .filter(estado -> episodioEnRango(
+                        estado.episodiosConfirmados(), fechaEpisodioDesde, fechaEpisodioHasta))
+                .sorted(comparador(ordenLista))
+                .map(this::aFilaLista)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    // HU24 | END23: calcula con la revisión anterior y solo después registra la revisión actual.
+    public ResumenSeguimientoPacienteDTO consultarResumen(Long pacienteId) {
+        Seguimiento seguimiento = seguimientoRepositorio
+                .findFirstByIdPaciente_IdAndFechaFinIsNullOrderByIdDesc(pacienteId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No se encontró un seguimiento activo para el paciente con ID " + pacienteId + "."));
+        OffsetDateTime ahora = OffsetDateTime.now(ZONA_NEGOCIO);
+        OffsetDateTime revisionAnterior = seguimiento.getFechaUltimaConsulta();
+        EstadoPaciente estado = calcularEstado(seguimiento, ahora, true, true);
+        Sesion ultimaSesion = sesionRepositorio
+                .findFirstByIdSeguimiento_IdOrderByFechaSesionDesc(seguimiento.getId())
+                .orElse(null);
+
+        ResumenSeguimientoPacienteDTO respuesta = construirResumen(
+                estado, revisionAnterior, ultimaSesion == null ? null : ultimaSesion.getFechaSesion());
+        seguimiento.setFechaUltimaConsulta(ahora);
+        seguimientoRepositorio.save(seguimiento);
+        return respuesta;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    // HU22 | END21: consolida el dashboard sin avanzar la revisión de ningún paciente.
+    public DashboardPsicologoDTO consultarDashboard(Long psicologoId) {
+        validarPsicologo(psicologoId);
+        OffsetDateTime ahora = OffsetDateTime.now(ZONA_NEGOCIO);
+        List<EstadoPaciente> estados = seguimientoRepositorio
+                .findByIdPsicologo_IdAndFechaFinIsNull(psicologoId).stream()
+                .map(seguimiento -> calcularEstado(seguimiento, ahora, true, false))
+                .toList();
+
+        long pendientes = estados.stream()
+                .filter(estado -> estado.paciente().getUsuario().getFechaActivacion() == null)
+                .count();
+        long promedioRevision = estados.isEmpty() ? 0L : Math.round(estados.stream()
+                .mapToLong(estado -> diasDesdeRevision(estado, ahora)).average().orElse(0.0));
+
+        List<DashboardPsicologoDTO.UltimaNovedadDTO> novedades = estados.stream()
+                .filter(estado -> !SIN_NOVEDADES.equals(estado.novedad()))
+                .filter(estado -> estado.fechaNovedad() != null)
+                .sorted(Comparator.comparing(EstadoPaciente::fechaNovedad).reversed())
+                .map(estado -> new DashboardPsicologoDTO.UltimaNovedadDTO(
+                        estado.paciente().getId(), nombreCompleto(estado.paciente()),
+                        estado.novedad(), estado.fechaNovedad()))
+                .toList();
+
+        long conEpisodios = estados.stream().filter(e -> NUEVOS_EPISODIOS.equals(e.novedad())).count();
+        long conRegistros = estados.stream().filter(e -> NUEVOS_REGISTROS.equals(e.novedad())).count();
+        long sinNovedades = estados.size() - conEpisodios - conRegistros;
+
+        return new DashboardPsicologoDTO(
+                estados.size(), pendientes, promedioRevision, novedades,
+                construirActividadSemanal(estados, ahora),
+                new DashboardPsicologoDTO.DistribucionNovedadesDTO(
+                        conEpisodios, conRegistros, sinNovedades));
+    }
+
+    // HU22-HU24: aplica una única definición de revisión anterior y prioridad de novedades.
+    private EstadoPaciente calcularEstado(Seguimiento seguimiento,
+                                           OffsetDateTime ahora,
+                                           boolean incluirPeriodo,
+                                           boolean incluirLecturas) {
+        Paciente paciente = seguimiento.getIdPaciente();
+        Long pacienteId = paciente.getId();
+        OffsetDateTime desdeRevision = inicioComparacion(seguimiento);
+        List<RegistroBienestar> registrosNuevos = desdeRevision.isBefore(ahora)
+                ? registroRepositorio.findByIdPaciente_IdAndFechaHoraBetweenOrderByFechaHoraDesc(
+                pacienteId, desdeRevision, ahora).stream()
+                .filter(registro -> registro.getFechaHora().isAfter(desdeRevision))
+                .toList()
+                : List.of();
+        OffsetDateTime ultimoRegistro = registroRepositorio
+                .findFirstByIdPaciente_IdOrderByFechaHoraDesc(pacienteId)
+                .map(RegistroBienestar::getFechaHora).orElse(null);
+        List<EventoWearable> episodios = eventoRepositorio
+                .findByIdDispositivo_IdPaciente_IdAndEstadoConfirmacionOrderByFechaHoraInicioDesc(
+                        pacienteId, CONFIRMADO);
+        List<EventoWearable> episodiosNuevos = episodios.stream()
+                .filter(evento -> posteriorYNoFuturo(instanteNovedad(evento), desdeRevision, ahora))
+                .toList();
+        OffsetDateTime ultimoEpisodio = episodios.stream()
+                .map(EventoWearable::getFechaHoraInicio)
+                .max(Comparator.naturalOrder()).orElse(null);
+
+        String novedad;
+        OffsetDateTime fechaNovedad;
+        if (!episodiosNuevos.isEmpty()) {
+            novedad = NUEVOS_EPISODIOS;
+            fechaNovedad = episodiosNuevos.stream().map(this::instanteNovedad)
+                    .max(Comparator.naturalOrder()).orElse(null);
+        } else if (!registrosNuevos.isEmpty()) {
+            novedad = NUEVOS_REGISTROS;
+            fechaNovedad = registrosNuevos.stream().map(RegistroBienestar::getFechaHora)
+                    .max(Comparator.naturalOrder()).orElse(null);
+        } else {
+            novedad = SIN_NOVEDADES;
+            fechaNovedad = null;
+        }
+
+        LocalDate inicioPeriodo = ahora.toLocalDate().minusDays(6);
+        OffsetDateTime desdePeriodo = inicioPeriodo.atStartOfDay(ZONA_NEGOCIO).toOffsetDateTime();
+        List<RegistroBienestar> registrosPeriodo = incluirPeriodo
+                ? registroRepositorio.findByIdPaciente_IdAndFechaHoraBetweenOrderByFechaHoraDesc(
+                pacienteId, desdePeriodo, ahora)
+                : List.of();
+        List<ResumenWearableDiario> resumenesPeriodo = incluirPeriodo
+                ? resumenDiarioRepositorio
+                .findByIdDispositivo_IdPaciente_IdAndFechaBetweenOrderByFechaAsc(
+                        pacienteId, inicioPeriodo, ahora.toLocalDate())
+                : List.of();
+        long lecturasNuevas = incluirLecturas && desdeRevision.isBefore(ahora)
+                ? lecturaRepositorio
+                .countByIdDispositivo_IdPaciente_IdAndFechaHoraAfterAndFechaHoraLessThanEqual(
+                        pacienteId, desdeRevision, ahora)
+                : 0L;
+
+        return new EstadoPaciente(seguimiento, paciente, desdeRevision, novedad, fechaNovedad,
+                registrosNuevos.size(), lecturasNuevas, episodiosNuevos.size(), ultimoRegistro,
+                ultimoEpisodio, registrosPeriodo, resumenesPeriodo, episodios);
+    }
+
+    // HU24 | END23: compone los datos permitidos y el resumen diario de los últimos siete días.
+    private ResumenSeguimientoPacienteDTO construirResumen(EstadoPaciente estado,
+                                                            OffsetDateTime revisionAnterior,
+                                                            OffsetDateTime ultimaSesion) {
+        Paciente paciente = estado.paciente();
+        Usuario usuario = paciente.getUsuario();
+        List<ResumenSeguimientoPacienteDTO.UltimoRegistroDTO> registros = estado.registrosPeriodo().stream()
+                .map(registro -> new ResumenSeguimientoPacienteDTO.UltimoRegistroDTO(
+                        registro.getFechaHora(), registro.getNivelAnsiedad(),
+                        registro.getEstadoAnimo(), registro.getComentario()))
+                .toList();
+
+        List<Double> ansiedades = estado.registrosPeriodo().stream()
+                .map(registro -> registro.getNivelAnsiedad().doubleValue()).toList();
+        Map<LocalDate, List<RegistroBienestar>> registrosPorDia = estado.registrosPeriodo().stream()
+                .collect(Collectors.groupingBy(registro -> fechaLocal(registro.getFechaHora())));
+        Map<LocalDate, List<ResumenWearableDiario>> resumenesPorDia = estado.resumenesPeriodo().stream()
+                .collect(Collectors.groupingBy(ResumenWearableDiario::getFecha));
+        Set<LocalDate> fechas = new LinkedHashSet<>();
+        fechas.addAll(registrosPorDia.keySet());
+        fechas.addAll(resumenesPorDia.keySet());
+        List<ResumenSeguimientoPacienteDTO.DiaResumenDTO> dias = fechas.stream().sorted()
+                .map(fecha -> new ResumenSeguimientoPacienteDTO.DiaResumenDTO(
+                        fecha,
+                        promedio(registrosPorDia.getOrDefault(fecha, List.of()).stream()
+                                .map(registro -> registro.getNivelAnsiedad().doubleValue()).toList()),
+                        promedio(resumenesPorDia.getOrDefault(fecha, List.of()).stream()
+                                .map(resumen -> resumen.getMinutosSueno() / 60.0).toList())))
+                .toList();
+        List<Double> suenoPorDia = dias.stream().map(ResumenSeguimientoPacienteDTO.DiaResumenDTO::getHorasSueno)
+                .filter(valor -> valor != null).toList();
+
+        return new ResumenSeguimientoPacienteDTO(
+                paciente.getId(), estado.seguimiento().getId(), nombreCompleto(paciente), usuario.getDni(),
+                paciente.getFechaNacimiento(), "ACTIVO", estado.seguimiento().getFechaInicio(),
+                revisionAnterior,
+                new ResumenSeguimientoPacienteDTO.NovedadesDTO(
+                        estado.registrosNuevos(), estado.lecturasNuevas(), estado.episodiosNuevos()),
+                ultimaSesion, estado.fechaUltimoEpisodio(), registros,
+                new ResumenSeguimientoPacienteDTO.ResumenPeriodoDTO(
+                        promedio(ansiedades), promedio(suenoPorDia), dias));
+    }
+
+    // HU22 | END21: genera una serie diaria real; los ceros representan ausencia de actividad.
+    private List<DashboardPsicologoDTO.ActividadDiaDTO> construirActividadSemanal(
+            List<EstadoPaciente> estados, OffsetDateTime ahora) {
+        LocalDate hoy = fechaLocal(ahora);
+        List<DashboardPsicologoDTO.ActividadDiaDTO> actividad = new ArrayList<>();
+        for (int desplazamiento = 6; desplazamiento >= 0; desplazamiento--) {
+            LocalDate fecha = hoy.minusDays(desplazamiento);
+            long registros = estados.stream().flatMap(e -> e.registrosPeriodo().stream())
+                    .filter(registro -> fecha.equals(fechaLocal(registro.getFechaHora()))).count();
+            long episodios = estados.stream().flatMap(e -> e.episodiosConfirmados().stream())
+                    .filter(evento -> !evento.getFechaHoraInicio().isAfter(ahora))
+                    .filter(evento -> fecha.equals(fechaLocal(evento.getFechaHoraInicio()))).count();
+            actividad.add(new DashboardPsicologoDTO.ActividadDiaDTO(fecha, registros, episodios));
+        }
+        return actividad;
+    }
+
+    private void validarPsicologo(Long psicologoId) {
+        if (!psicologoRepositorio.existsById(psicologoId)) {
+            throw new ResourceNotFoundException("No se encontró el psicólogo con ID " + psicologoId + ".");
+        }
+    }
+
+    private OffsetDateTime inicioComparacion(Seguimiento seguimiento) {
+        return seguimiento.getFechaUltimaConsulta() != null
+                ? seguimiento.getFechaUltimaConsulta()
+                : seguimiento.getFechaInicio().atStartOfDay(ZONA_NEGOCIO).toOffsetDateTime();
+    }
+
+    private OffsetDateTime instanteNovedad(EventoWearable evento) {
+        return evento.getFechaRespuesta() != null ? evento.getFechaRespuesta() : evento.getFechaHoraInicio();
+    }
+
+    private boolean posteriorYNoFuturo(OffsetDateTime fecha,
+                                       OffsetDateTime desde,
+                                       OffsetDateTime hasta) {
+        return fecha != null && fecha.isAfter(desde) && !fecha.isAfter(hasta);
+    }
+
+    private long diasDesdeRevision(EstadoPaciente estado, OffsetDateTime ahora) {
+        long dias = ChronoUnit.DAYS.between(fechaLocal(estado.desdeRevision()), fechaLocal(ahora));
+        return Math.max(0L, dias);
+    }
+
+    private LocalDate fechaLocal(OffsetDateTime fecha) {
+        return fecha.atZoneSameInstant(ZONA_NEGOCIO).toLocalDate();
+    }
+
+    private String nombreCompleto(Paciente paciente) {
+        return paciente.getUsuario().getNombres() + " " + paciente.getUsuario().getApellidos();
+    }
+
+    private PacienteSeguimientoListaDTO aFilaLista(EstadoPaciente estado) {
+        Usuario usuario = estado.paciente().getUsuario();
+        return new PacienteSeguimientoListaDTO(
+                estado.paciente().getId(), estado.seguimiento().getId(), usuario.getNombres(),
+                usuario.getApellidos(), usuario.getDni(), estado.novedad(),
+                estado.fechaUltimoRegistro(), estado.fechaUltimoEpisodio());
+    }
+
+    private Comparator<EstadoPaciente> comparador(OrdenLista orden) {
+        Comparator<EstadoPaciente> nombre = Comparator
+                .comparing((EstadoPaciente e) -> normalizarTexto(e.paciente().getUsuario().getApellidos()))
+                .thenComparing(e -> normalizarTexto(e.paciente().getUsuario().getNombres()));
+        Comparator<OffsetDateTime> fechas = Comparator.nullsLast(Comparator.naturalOrder());
+        return switch (orden) {
+            case NOMBRE_ASC -> nombre;
+            case NOMBRE_DESC -> nombre.reversed();
+            case ULTIMO_REGISTRO_ASC -> Comparator.comparing(EstadoPaciente::fechaUltimoRegistro, fechas)
+                    .thenComparing(nombre);
+            case ULTIMO_REGISTRO_DESC -> Comparator
+                    .comparing(EstadoPaciente::fechaUltimoRegistro,
+                            Comparator.nullsLast(Comparator.reverseOrder()))
+                    .thenComparing(nombre);
+            case ULTIMO_EPISODIO_ASC -> Comparator.comparing(EstadoPaciente::fechaUltimoEpisodio, fechas)
+                    .thenComparing(nombre);
+            case ULTIMO_EPISODIO_DESC -> Comparator
+                    .comparing(EstadoPaciente::fechaUltimoEpisodio,
+                            Comparator.nullsLast(Comparator.reverseOrder()))
+                    .thenComparing(nombre);
+            case NOVEDAD -> Comparator.comparingInt((EstadoPaciente e) -> prioridad(e.novedad()))
+                    .thenComparing(EstadoPaciente::fechaNovedad,
+                            Comparator.nullsLast(Comparator.reverseOrder()))
+                    .thenComparing(nombre);
+        };
+    }
+
+    private boolean coincideBusqueda(EstadoPaciente estado, String busqueda) {
+        if (busqueda == null) {
+            return true;
+        }
+        Usuario usuario = estado.paciente().getUsuario();
+        return normalizarTexto(usuario.getNombres() + " " + usuario.getApellidos()).contains(busqueda)
+                || normalizarTexto(usuario.getApellidos() + " " + usuario.getNombres()).contains(busqueda)
+                || usuario.getDni().contains(busqueda);
+    }
+
+    private boolean episodioEnRango(List<EventoWearable> episodios,
+                                    LocalDate desde,
+                                    LocalDate hasta) {
+        if (desde == null && hasta == null) {
+            return true;
+        }
+        return episodios.stream().map(EventoWearable::getFechaHoraInicio).map(this::fechaLocal)
+                .anyMatch(fecha -> (desde == null || !fecha.isBefore(desde))
+                        && (hasta == null || !fecha.isAfter(hasta)));
+    }
+
+    private void validarRango(LocalDate desde, LocalDate hasta) {
+        if (desde != null && hasta != null && desde.isAfter(hasta)) {
+            throw new InvalidRequestException(
+                    "fechaEpisodioDesde no puede ser posterior a fechaEpisodioHasta.");
+        }
+    }
+
+    private String normalizarNovedad(String novedad) {
+        if (novedad == null || novedad.isBlank()) {
+            return null;
+        }
+        String valor = novedad.trim().toUpperCase(Locale.ROOT);
+        if (!NUEVOS_EPISODIOS.equals(valor) && !NUEVOS_REGISTROS.equals(valor)
+                && !SIN_NOVEDADES.equals(valor)) {
+            throw new InvalidRequestException("El filtro novedad no es válido.");
+        }
+        return valor;
+    }
+
+    private int prioridad(String novedad) {
+        return switch (novedad) {
+            case NUEVOS_EPISODIOS -> 0;
+            case NUEVOS_REGISTROS -> 1;
+            default -> 2;
+        };
+    }
+
+    private Double promedio(List<Double> valores) {
+        if (valores.isEmpty()) {
+            return null;
+        }
+        double valor = valores.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+        return Math.round(valor * 10.0) / 10.0;
+    }
+
+    private String normalizarTexto(String texto) {
+        if (texto == null || texto.isBlank()) {
+            return "";
+        }
+        return Normalizer.normalize(texto.trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT);
+    }
+
+    private enum OrdenLista {
+        NOMBRE_ASC,
+        NOMBRE_DESC,
+        ULTIMO_REGISTRO_ASC,
+        ULTIMO_REGISTRO_DESC,
+        ULTIMO_EPISODIO_ASC,
+        ULTIMO_EPISODIO_DESC,
+        NOVEDAD;
+
+        private static OrdenLista desde(String valor) {
+            if (valor == null || valor.isBlank()) {
+                return NOMBRE_ASC;
+            }
+            try {
+                return valueOf(valor.trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ex) {
+                throw new InvalidRequestException("El criterio orden no es válido.");
+            }
+        }
+    }
+
+    // HU22-HU24: resultado interno común; evita repetir reglas entre los tres endpoints.
+    private record EstadoPaciente(Seguimiento seguimiento,
+                                  Paciente paciente,
+                                  OffsetDateTime desdeRevision,
+                                  String novedad,
+                                  OffsetDateTime fechaNovedad,
+                                  long registrosNuevos,
+                                  long lecturasNuevas,
+                                  long episodiosNuevos,
+                                  OffsetDateTime fechaUltimoRegistro,
+                                  OffsetDateTime fechaUltimoEpisodio,
+                                  List<RegistroBienestar> registrosPeriodo,
+                                  List<ResumenWearableDiario> resumenesPeriodo,
+                                  List<EventoWearable> episodiosConfirmados) {
+    }
+}

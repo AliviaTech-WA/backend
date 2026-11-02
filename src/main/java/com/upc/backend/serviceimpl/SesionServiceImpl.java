@@ -38,6 +38,7 @@ public class SesionServiceImpl implements SesionService {
         sesion.setIdSeguimiento(seguimiento);
         sesion.setFechaRegistro(OffsetDateTime.now());
         sesion = sesionRepositorio.save(sesion);
+        
         return new SesionCreadaDTO(sesion.getId(), sesion.getFechaSesion(), sesion.getFechaRegistro());
     }
     @Override
