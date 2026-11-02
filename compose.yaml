@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: BD_AliviaTech
+      POSTGRES_USER: ${DB_USER:?Define DB_USER en .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  api:
+    build: .
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/BD_AliviaTech
+      DB_USER: ${DB_USER:?Define DB_USER en .env}
+      DB_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en .env}
+      DDL_AUTO: ${DDL_AUTO:-update}
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env}
+      ALIVIATECH_JWT_EXPIRATION_MS: ${ALIVIATECH_JWT_EXPIRATION_MS:-1200000}
+      ALIVIATECH_FRONTEND_ACTIVACION_URL: ${ALIVIATECH_FRONTEND_ACTIVACION_URL:-http://localhost:4200/activar-cuenta}
+      ALIVIATECH_CONSENTIMIENTO_VERSION: ${ALIVIATECH_CONSENTIMIENTO_VERSION:-1.0}
+      ALIVIATECH_TERMINOS_URL: ${ALIVIATECH_TERMINOS_URL:-http://localhost:4200/terminos}
+      ALIVIATECH_MAIL_ENABLED: ${ALIVIATECH_MAIL_ENABLED:-false}
+      ALIVIATECH_MAIL_FROM: ${ALIVIATECH_MAIL_FROM:-}
+      ALIVIATECH_SMTP_HOST: ${ALIVIATECH_SMTP_HOST:-smtp.gmail.com}
+      ALIVIATECH_SMTP_PORT: ${ALIVIATECH_SMTP_PORT:-587}
+      ALIVIATECH_SMTP_USERNAME: ${ALIVIATECH_SMTP_USERNAME:-}
+      ALIVIATECH_SMTP_PASSWORD: ${ALIVIATECH_SMTP_PASSWORD:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
+      GEMINI_BASE_URL: ${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta}
+      ALIVIATECH_WEARABLE_SIMULATOR_ENABLED: ${ALIVIATECH_WEARABLE_SIMULATOR_ENABLED:-true}
+      ALIVIATECH_WEARABLE_READINGS_CRON: ${ALIVIATECH_WEARABLE_READINGS_CRON:-0 */15 * * * *}
+      ALIVIATECH_WEARABLE_SUMMARIES_CRON: ${ALIVIATECH_WEARABLE_SUMMARIES_CRON:-0 5 0 * * *}
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

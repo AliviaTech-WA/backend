@@ -10,7 +10,7 @@ INSERT INTO public.usuario
  password_hash, fecha_creacion, fecha_activacion)
 VALUES
     (1, 'PSICOLOGO', '70123451', 'Rafael', 'Mendoza',
-     'rafael.demo@aliviatech.test', '987654301', '$2a$12$lH2ZeLf.g/hordmwknRkYOjIpYqiM.QpUbt9slui7vFXfIhr07ZNa',
+     'eylonarmijo@gmail.com', '987654301', '$2a$12$lH2ZeLf.g/hordmwknRkYOjIpYqiM.QpUbt9slui7vFXfIhr07ZNa',
      '2026-09-01 09:00:00-05', '2026-09-01 09:30:00-05'),
     (2, 'PSICOLOGO', '70123452', 'Lucia', 'Torres',
      'lucia.demo@aliviatech.test', '987654302', '$2a$12$lH2ZeLf.g/hordmwknRkYOjIpYqiM.QpUbt9slui7vFXfIhr07ZNa',
@@ -19,7 +19,7 @@ VALUES
      'carlos.demo@aliviatech.test', '987654303', '$2a$12$lH2ZeLf.g/hordmwknRkYOjIpYqiM.QpUbt9slui7vFXfIhr07ZNa',
      '2026-09-01 11:00:00-05', '2026-09-01 11:30:00-05'),
     (4, 'PACIENTE', '70123454', 'Camila', 'Flores',
-     'camila.demo@aliviatech.test', '987654304', '$2a$12$lH2ZeLf.g/hordmwknRkYOjIpYqiM.QpUbt9slui7vFXfIhr07ZNa',
+     'eylonarmijo12@gmail.com', '987654304', '$2a$12$lH2ZeLf.g/hordmwknRkYOjIpYqiM.QpUbt9slui7vFXfIhr07ZNa',
      '2026-09-02 09:00:00-05', '2026-09-02 09:30:00-05'),
     (5, 'PACIENTE', '70123455', 'Diego', 'Castillo',
      'diego.demo@aliviatech.test', '987654305', '$2a$12$lH2ZeLf.g/hordmwknRkYOjIpYqiM.QpUbt9slui7vFXfIhr07ZNa',
