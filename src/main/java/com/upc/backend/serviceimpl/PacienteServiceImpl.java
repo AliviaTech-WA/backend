@@ -92,7 +92,7 @@ public class PacienteServiceImpl implements PacienteService {
             }
         });
         dispositivo.ifPresent(d -> dto.setDispositivo(new InicioPacienteDTO.DispositivoInicioDTO(
-                d.getAlias(), d.getModelo(), "VINCULADA", d.getFechaUltimaSincronizacion())));
+                d.getAlias(), d.getModelo(), "ACTIVO", d.getFechaUltimaSincronizacion())));
         return dto;
     }
 
