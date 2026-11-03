@@ -120,6 +120,7 @@ public class PacienteController {
 
     //HU16: Responder evento wearable del paciente
     @PatchMapping("/{pacienteId}/eventos/{eventoId}/respuesta")
+    @PreAuthorize("@autorizacionService.esPacienteDelEvento(#pacienteId)")
     public ResponseEntity<EventoWearableResponseDTO> responderEvento(
             @PathVariable Long pacienteId,
             @PathVariable Long eventoId,
@@ -137,6 +138,7 @@ public class PacienteController {
     
     //HU17: Consultar eventos respondidos del paciente
     @GetMapping("/{pacienteId}/eventos/historial")
+    @PreAuthorize("@autorizacionService.puedeAccederPaciente(#pacienteId)")
     public ResponseEntity<List<EventoWearableResponseDTO>> obtenerEventosRespondidos(
             @PathVariable Long pacienteId) {
 
@@ -146,6 +148,7 @@ public class PacienteController {
 
     //HU16: Una vez respondido el evento se consulta los eventos pendientes del paciente, para actualizar el front.
     @GetMapping("/{pacienteId}/eventos/pendientes")
+    @PreAuthorize("@autorizacionService.esPacienteDelEvento(#pacienteId)")
     public ResponseEntity<List<EventoWearableResponseDTO>> obtenerEventosPendientes(
             @PathVariable Long pacienteId) {
 

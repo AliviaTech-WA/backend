@@ -199,7 +199,7 @@ public class PsicologoServiceImpl implements PsicologoService {
         dispositivo.setId(null);
         dispositivo.setIdPaciente(paciente);
         dispositivo.setCodigoDispositivo(generarCodigoDispositivo());
-        dispositivo.setEstado("VINCULADA");
+        dispositivo.setEstado("ACTIVO");
         dispositivo.setFechaAsignacion(ahora);
         dispositivo = dispositivoRepositorio.save(dispositivo);
 

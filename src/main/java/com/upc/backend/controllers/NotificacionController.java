@@ -4,6 +4,7 @@ import com.upc.backend.dtos.NotificacionResponseDTO;
 import com.upc.backend.services.NotificacionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,18 +18,21 @@ public class NotificacionController {
 
     // GET /api/v1/notificaciones/usuario/{usuarioId}
     @GetMapping("/usuario/{usuarioId}")
+    @PreAuthorize("@autorizacionService.esMismoUsuario(#usuarioId)")
     public ResponseEntity<List<NotificacionResponseDTO>> listarNotificaciones(@PathVariable Long usuarioId) {
         return ResponseEntity.ok(notificacionService.listarPorUsuario(usuarioId));
     }
 
     // GET /api/v1/notificaciones/usuario/{usuarioId}/no-leidas/conteo
     @GetMapping("/usuario/{usuarioId}/no-leidas/conteo")
+    @PreAuthorize("@autorizacionService.esMismoUsuario(#usuarioId)")
     public ResponseEntity<Long> contarNoLeidas(@PathVariable Long usuarioId) {
         return ResponseEntity.ok(notificacionService.contarNoLeidas(usuarioId));
     }
 
     // PATCH /api/v1/notificaciones/{notificacionId}/leida?usuarioId=1
     @PatchMapping("/{notificacionId}/leida")
+    @PreAuthorize("@autorizacionService.esMismoUsuario(#usuarioId)")
     public ResponseEntity<Void> marcarComoLeida(
             @PathVariable Long notificacionId,
             @RequestParam Long usuarioId) {
