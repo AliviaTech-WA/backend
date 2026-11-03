@@ -102,7 +102,7 @@ public class WearableSimuladorService {
         Dispositivo dispositivo = dispositivoRepositorio.findById(dispositivoId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No se encontro el dispositivo con ID " + dispositivoId + "."));
-        if (dispositivo.getFechaRetiro() != null || !"VINCULADA".equalsIgnoreCase(dispositivo.getEstado())) {
+        if (dispositivo.getFechaRetiro() != null || !"ACTIVO".equalsIgnoreCase(dispositivo.getEstado())) {
             throw new IllegalStateException("El dispositivo no esta activo para simulacion.");
         }
         return dispositivo;
