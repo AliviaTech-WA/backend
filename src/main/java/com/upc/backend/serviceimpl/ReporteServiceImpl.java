@@ -18,6 +18,7 @@ import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.upc.backend.enums.EstadoConfirmacionEventos;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -69,7 +70,7 @@ public class ReporteServiceImpl implements ReporteService {
                     .findByIdPaciente_IdAndFechaHoraBetweenOrderByFechaHoraDesc(pacienteId, desdeTs, hastaTs);
             List<EventoWearable> episodios = eventoRepositorio
                     .findByIdDispositivo_IdPaciente_IdAndFechaHoraInicioBetween(pacienteId, desdeTs, hastaTs)
-                    .stream().filter(e -> "CONFIRMADO".equals(e.getEstadoConfirmacion())).toList();
+                    .stream().filter(e -> e.getEstadoConfirmacion() == EstadoConfirmacionEventos.SI).toList();
             pacientes.add(new PacienteDatos(seguimiento, registros, episodios));
         }
         long registrosTotales = pacientes.stream().mapToLong(p -> p.registros().size()).sum();
