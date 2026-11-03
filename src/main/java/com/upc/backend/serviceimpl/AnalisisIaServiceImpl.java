@@ -7,6 +7,7 @@ import com.upc.backend.entities.LecturaWearable;
 import com.upc.backend.entities.RegistroBienestar;
 import com.upc.backend.entities.ResumenWearableDiario;
 import com.upc.backend.entities.Seguimiento;
+import com.upc.backend.enums.EstadoConfirmacionEventos;
 import com.upc.backend.exceptions.InvalidRequestException;
 import com.upc.backend.exceptions.ResourceNotFoundException;
 import com.upc.backend.repositories.EventoWearableRepositorio;
@@ -92,7 +93,7 @@ public class AnalisisIaServiceImpl implements AnalisisIaService {
         List<EventoWearable> eventos = usaWearable
                 ? eventoRepositorio.findByIdDispositivo_IdPaciente_IdAndFechaHoraInicioBetween(
                         pacienteId, request.getPeriodoDesde(), request.getPeriodoHasta()).stream()
-                .filter(evento -> "CONFIRMADO".equals(evento.getEstadoConfirmacion()))
+                .filter(evento -> evento.getEstadoConfirmacion() == EstadoConfirmacionEventos.SI)
                 .toList()
                 : List.of();
 
