@@ -61,9 +61,9 @@ public class PacienteServiceImpl implements PacienteService {
         List<RegistroBienestar> registros = registroRepositorio.findByIdPaciente_IdOrderByFechaHoraDesc(pacienteId);
         Optional<EventoWearable> pendiente = eventoRepositorio
                 .findFirstByIdDispositivo_IdPaciente_IdAndEstadoConfirmacionIsNullOrderByFechaHoraInicioDesc(
-                        pacienteId, "PENDIENTE");
+                        pacienteId);
         long cantidadPendientes = eventoRepositorio
-                .countByIdDispositivo_IdPaciente_IdAndEstadoConfirmacionIsNull(pacienteId, "PENDIENTE");
+                .countByIdDispositivo_IdPaciente_IdAndEstadoConfirmacionIsNull(pacienteId);
         Optional<Seguimiento> seguimiento = seguimientoRepositorio
                 .findFirstByIdPaciente_IdAndFechaFinIsNull(pacienteId);
         Optional<Sesion> ultimaSesion = seguimiento.flatMap(s ->
