@@ -33,11 +33,10 @@ public interface EventoWearableRepositorio extends JpaRepository<EventoWearable,
             Long pacienteId, EstadoConfirmacionEventos estadoConfirmacion);
 
     // HU08 | END16: selecciona el evento pendiente más reciente.
-    Optional<EventoWearable> findFirstByIdDispositivo_IdPaciente_IdAndEstadoConfirmacionOrderByFechaHoraInicioDesc(
-            Long pacienteId, String estadoConfirmacion);
+    Optional<EventoWearable> findFirstByIdDispositivo_IdPaciente_IdAndEstadoConfirmacionIsNullOrderByFechaHoraInicioDesc(Long pacienteId);
 
     // HU08 | END16: cuenta las novedades pendientes mostradas al paciente.
-    long countByIdDispositivo_IdPaciente_IdAndEstadoConfirmacion(Long pacienteId, String estadoConfirmacion);
+    long countByIdDispositivo_IdPaciente_IdAndEstadoConfirmacionIsNull(Long pacienteId);
 
     // HU32 | END26: recupera eventos del periodo para los indicadores del reporte.
     List<EventoWearable> findByIdDispositivo_IdPaciente_IdAndFechaHoraInicioBetween(
