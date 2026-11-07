@@ -17,5 +17,5 @@ public class SesionResumenDTO {
     private OffsetDateTime fechaSesion;
     private String resumenCompartido;
     private String recomendacionCompartida;
-
+    private String psicologoResponsable;
 }
