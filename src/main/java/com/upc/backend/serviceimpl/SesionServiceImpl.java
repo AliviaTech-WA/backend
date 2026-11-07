@@ -1,6 +1,7 @@
 package com.upc.backend.serviceimpl;
 import com.upc.backend.dtos.RegistrarSesionRequestDTO;
 import com.upc.backend.dtos.SesionCreadaDTO;
+import com.upc.backend.entities.Psicologo;
 import com.upc.backend.entities.Seguimiento;
 import com.upc.backend.entities.Sesion;
 import com.upc.backend.entities.Usuario;
@@ -47,6 +48,7 @@ public class SesionServiceImpl implements SesionService {
     // HU19 y HU29 | END19: devuelve el historial sin exponer la nota interna.
     public List<SesionResumenDTO> listar(Long pacienteId) {
         Seguimiento seguimiento = buscarSeguimientoActivo(pacienteId);
+        Psicologo psicologo = seguimiento.getIdPsicologo();
         Usuario usuario = seguimiento.getIdPsicologo().getUsuario();
         String nombrePsicologo =
                 usuario.getNombres() + " " + usuario.getApellidos();
@@ -58,7 +60,9 @@ public class SesionServiceImpl implements SesionService {
                         sesion.getFechaSesion(),
                         sesion.getResumenCompartido(),
                         sesion.getRecomendacionCompartida(),
-                        nombrePsicologo
+                        nombrePsicologo,
+                        psicologo.getEspecialidad(),
+                        psicologo.getNumeroColegiatura()
                 ))
                 .toList();
     }
