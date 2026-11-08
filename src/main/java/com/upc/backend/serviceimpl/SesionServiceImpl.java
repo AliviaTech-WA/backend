@@ -1,8 +1,10 @@
 package com.upc.backend.serviceimpl;
 import com.upc.backend.dtos.RegistrarSesionRequestDTO;
 import com.upc.backend.dtos.SesionCreadaDTO;
+import com.upc.backend.entities.Psicologo;
 import com.upc.backend.entities.Seguimiento;
 import com.upc.backend.entities.Sesion;
+import com.upc.backend.entities.Usuario;
 import com.upc.backend.exceptions.ResourceNotFoundException;
 import com.upc.backend.repositories.SeguimientoRepositorio;
 import com.upc.backend.repositories.SesionRepositorio;
@@ -46,9 +48,22 @@ public class SesionServiceImpl implements SesionService {
     // HU19 y HU29 | END19: devuelve el historial sin exponer la nota interna.
     public List<SesionResumenDTO> listar(Long pacienteId) {
         Seguimiento seguimiento = buscarSeguimientoActivo(pacienteId);
-        return sesionRepositorio.findByIdSeguimiento_IdOrderByFechaSesionDesc(seguimiento.getId()).stream()
-                .map(sesion -> new SesionResumenDTO(sesion.getId(), sesion.getFechaSesion(),
-                        sesion.getResumenCompartido(), sesion.getRecomendacionCompartida()))
+        Psicologo psicologo = seguimiento.getIdPsicologo();
+        Usuario usuario = seguimiento.getIdPsicologo().getUsuario();
+        String nombrePsicologo =
+                usuario.getNombres() + " " + usuario.getApellidos();
+        return sesionRepositorio
+                .findByIdSeguimiento_IdOrderByFechaSesionDesc(seguimiento.getId())
+                .stream()
+                .map(sesion -> new SesionResumenDTO(
+                        sesion.getId(),
+                        sesion.getFechaSesion(),
+                        sesion.getResumenCompartido(),
+                        sesion.getRecomendacionCompartida(),
+                        nombrePsicologo,
+                        psicologo.getEspecialidad(),
+                        psicologo.getNumeroColegiatura()
+                ))
                 .toList();
     }
     // HU19, HU28 y HU29: localiza el seguimiento vigente usado por las operaciones de sesión.
