@@ -195,4 +195,11 @@ public class PacienteController {
     public ResponseEntity<List<EventoPacienteDTO>> listarEpisodiosConfirmados(@PathVariable Long pacienteId) {
         return ResponseEntity.ok(pacienteService.listarEpisodiosConfirmados(pacienteId));
     }
+
+    @GetMapping("/{pacienteId}/wearable")
+    @PreAuthorize("@autorizacionService.puedeAccederPaciente(#pacienteId)")
+    // HU26 | END11: datos del wearable del dispositivo activo del paciente.
+    public ResponseEntity<DatosWearableDTO> consultarWearable(@PathVariable Long pacienteId) {
+        return ResponseEntity.ok(dispositivoService.consultarDatosPorPaciente(pacienteId));
+    }
 }
