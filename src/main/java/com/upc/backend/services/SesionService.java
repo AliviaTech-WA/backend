@@ -1,5 +1,6 @@
 package com.upc.backend.services;
 
+import com.upc.backend.dtos.ActualizarSesionRequestDTO;
 import com.upc.backend.dtos.RegistrarSesionRequestDTO;
 import com.upc.backend.dtos.SesionCreadaDTO;
 import com.upc.backend.dtos.SesionResumenDTO;
@@ -14,4 +15,6 @@ public interface SesionService {
     List<SesionResumenDTO> listar(Long pacienteId);
     // HU20 y HU30 | END20: consulta detalle con nota interna condicionada por rol.
     SesionDetalleDTO buscarDetalle(Long sesionId, boolean incluirNotaInterna);
+    SesionDetalleDTO actualizar(Long sesionId, ActualizarSesionRequestDTO request);
+    void eliminar(Long sesionId);
 }

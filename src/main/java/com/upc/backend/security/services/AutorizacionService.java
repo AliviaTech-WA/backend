@@ -84,6 +84,18 @@ public class AutorizacionService {
         return sesion != null && puedeAccederPaciente(sesion.getIdSeguimiento().getIdPaciente().getId());
     }
 
+    // Permite modificar solo sesiones del seguimiento propio con acceso vigente al paciente.
+    // Si no existe, el servicio devuelve el 404 habitual despues de verificar el rol.
+    public boolean puedeModificarSesion(Long sesionId) {
+        UsuarioPrincipal principal = principal();
+        if (principal == null || !"PSICOLOGO".equals(principal.getRol())) {
+            return false;
+        }
+        Sesion sesion = sesionRepositorio.findById(sesionId).orElse(null);
+        return sesion == null || (principal.getId().equals(sesion.getIdSeguimiento().getIdPsicologo().getId())
+                && puedeAccederPaciente(sesion.getIdSeguimiento().getIdPaciente().getId()));
+    }
+
     // Infraestructura común: expone el principal para adaptar respuestas según el rol.
     public UsuarioPrincipal principalActual() {
         return principal();

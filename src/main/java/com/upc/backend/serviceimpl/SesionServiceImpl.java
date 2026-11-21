@@ -1,5 +1,6 @@
 package com.upc.backend.serviceimpl;
 import com.upc.backend.dtos.RegistrarSesionRequestDTO;
+import com.upc.backend.dtos.ActualizarSesionRequestDTO;
 import com.upc.backend.dtos.SesionCreadaDTO;
 import com.upc.backend.entities.Psicologo;
 import com.upc.backend.entities.Seguimiento;
@@ -81,6 +82,28 @@ public class SesionServiceImpl implements SesionService {
         return new SesionDetalleDTO(sesion.getId(), sesion.getFechaSesion(),
                 incluirNotaInterna ? sesion.getNotaInterna() : null,
                 sesion.getResumenCompartido(), sesion.getRecomendacionCompartida());
+    }
+
+    @Override
+    @Transactional
+    public SesionDetalleDTO actualizar(Long sesionId, ActualizarSesionRequestDTO request) {
+        Sesion sesion = sesionRepositorio.findById(sesionId)
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontró la sesión con ID " + sesionId + "."));
+        sesion.setFechaSesion(request.getFechaSesion());
+        sesion.setNotaInterna(request.getNotaInterna());
+        sesion.setResumenCompartido(request.getResumenCompartido());
+        sesion.setRecomendacionCompartida(request.getRecomendacionCompartida());
+        sesion = sesionRepositorio.save(sesion);
+        return new SesionDetalleDTO(sesion.getId(), sesion.getFechaSesion(), sesion.getNotaInterna(),
+                sesion.getResumenCompartido(), sesion.getRecomendacionCompartida());
+    }
+
+    @Override
+    @Transactional
+    public void eliminar(Long sesionId) {
+        Sesion sesion = sesionRepositorio.findById(sesionId)
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontró la sesión con ID " + sesionId + "."));
+        sesionRepositorio.delete(sesion);
     }
 
 
