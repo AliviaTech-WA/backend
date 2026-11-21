@@ -39,8 +39,7 @@ public class SesionController {
 
     @PutMapping("/{sesionId}")
     @PreAuthorize("@autorizacionService.puedeModificarSesion(#sesionId)")
-    public ResponseEntity<SesionDetalleDTO> actualizar(@PathVariable Long sesionId,
-                                                       @Valid @RequestBody ActualizarSesionRequestDTO request) {
+    public ResponseEntity<SesionDetalleDTO> actualizar(@PathVariable Long sesionId, @Valid @RequestBody ActualizarSesionRequestDTO request) {
         return ResponseEntity.ok(sesionService.actualizar(sesionId, request));
     }
 
