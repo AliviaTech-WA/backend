@@ -131,7 +131,7 @@ VALUES
 INSERT INTO public.resumen_wearable_diario
 (id_resumen, id_dispositivo, fecha, pasos, minutos_sueno)
 VALUES
-    (1, 1, '2026-10-25', 8450, 450),
+    (1, 1, '2026-10-24', 8450, 450),
     (2, 2, '2026-10-25', 5230, 360),
     (3, 3, '2026-10-25', 7120, 420)
     ON CONFLICT DO NOTHING;
