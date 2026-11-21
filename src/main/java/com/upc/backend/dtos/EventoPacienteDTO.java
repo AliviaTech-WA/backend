@@ -11,7 +11,7 @@ import java.time.OffsetDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-// HU27 | END15: episodio confirmado con el contexto que necesita el psicólogo.
+// HU12, HU16, HU17 y HU27: datos del evento para el paciente y su psicologo.
 public class EventoPacienteDTO {
     private Long eventoId;
     private OffsetDateTime fechaHoraInicio;
@@ -22,4 +22,8 @@ public class EventoPacienteDTO {
     private String nivelActividad;
     private String estadoConfirmacion;
     private String contextoPaciente;
+    private Long tiempoVariacion;
+    private String comentario;
+    private OffsetDateTime fechaRespuesta;
+    private String descripcionVariacion;
 }
