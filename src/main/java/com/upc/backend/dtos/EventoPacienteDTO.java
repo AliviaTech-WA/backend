@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 @Getter
@@ -20,6 +21,7 @@ public class EventoPacienteDTO {
     private Short frecuenciaCardiacaMaxima;
     private Double horasSuenoPrevio;
     private String nivelActividad;
+    private LocalDate fechaResumenActividad;
     private String estadoConfirmacion;
     private String contextoPaciente;
     private Long tiempoVariacion;

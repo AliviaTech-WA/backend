@@ -4,6 +4,7 @@ import com.upc.backend.dtos.EventoPacienteDTO;
 import com.upc.backend.entities.Dispositivo;
 import com.upc.backend.entities.EventoWearable;
 import com.upc.backend.entities.Paciente;
+import com.upc.backend.entities.ResumenWearableDiario;
 import com.upc.backend.enums.EstadoConfirmacionEventos;
 import com.upc.backend.repositories.EventoWearableRepositorio;
 import com.upc.backend.repositories.LecturaWearableRepositorio;
@@ -15,6 +16,7 @@ import com.upc.backend.serviceimpl.PacienteServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -59,6 +61,7 @@ class EventoWearableConsultaTest {
         assertEquals(15L, resultado.get(0).getTiempoVariacion());
         assertEquals("contexto", resultado.get(0).getComentario());
         assertNull(resultado.get(0).getNivelActividad());
+        assertNull(resultado.get(0).getFechaResumenActividad());
         verify(eventos, never()).findByIdDispositivo_IdPaciente_IdAndEstadoConfirmacionOrderByFechaHoraInicioDesc(
                 anyLong(), any());
     }
@@ -86,6 +89,67 @@ class EventoWearableConsultaTest {
 
         assertEquals(1, servicio.listarEventosWearable(1L).size());
         verify(eventos, never()).findByIdDispositivo_IdPaciente_IdOrderByFechaHoraInicioDesc(anyLong());
+    }
+
+    @Test
+    void clasificaPasosDelDiaEnLimaYUsaElUltimoResumenAnterior() {
+        var servicio = new PacienteServiceImpl();
+        var pacientes = mock(PacienteRepositorio.class);
+        var eventos = mock(EventoWearableRepositorio.class);
+        var lecturas = mock(LecturaWearableRepositorio.class);
+        var resumenes = mock(ResumenWearableDiarioRepositorio.class);
+        var autorizacion = mock(AutorizacionService.class);
+        var principal = mock(UsuarioPrincipal.class);
+        ReflectionTestUtils.setField(servicio, "pacienteRepositorio", pacientes);
+        ReflectionTestUtils.setField(servicio, "eventoRepositorio", eventos);
+        ReflectionTestUtils.setField(servicio, "lecturaRepositorio", lecturas);
+        ReflectionTestUtils.setField(servicio, "resumenRepositorio", resumenes);
+        ReflectionTestUtils.setField(servicio, "autorizacionService", autorizacion);
+        when(pacientes.findById(1L)).thenReturn(Optional.of(new Paciente()));
+        when(autorizacion.principalActual()).thenReturn(principal);
+        when(principal.getRol()).thenReturn("PACIENTE");
+        var evento = evento(10L, null);
+        evento.setFechaHoraInicio(OffsetDateTime.parse("2026-11-21T01:00:00Z"));
+        evento.setFechaHoraFin(OffsetDateTime.parse("2026-11-21T01:15:00Z"));
+        when(eventos.findByIdDispositivo_IdPaciente_IdOrderByFechaHoraInicioDesc(1L))
+                .thenReturn(List.of(evento));
+        when(lecturas.findByIdDispositivo_IdAndFechaHoraBetween(anyLong(), any(), any()))
+                .thenReturn(List.of());
+
+        LocalDate fechaLima = LocalDate.of(2026, 11, 20);
+        int[] pasos = {0, 4999, 5000, 9999, 10000};
+        String[] niveles = {"BAJA", "BAJA", "MEDIA", "MEDIA", "ALTA"};
+        for (int i = 0; i < pasos.length; i++) {
+            var resumen = resumen(fechaLima, pasos[i]);
+            when(resumenes.findByIdDispositivo_IdAndFecha(2L, fechaLima))
+                    .thenReturn(Optional.of(resumen));
+            EventoPacienteDTO dto = servicio.listarEventosWearable(1L).get(0);
+            assertEquals(niveles[i], dto.getNivelActividad());
+            assertEquals(fechaLima, dto.getFechaResumenActividad());
+        }
+        verify(resumenes, never()).findFirstByIdDispositivo_IdAndFechaBeforeOrderByFechaDesc(anyLong(), any());
+
+        var anterior = resumen(fechaLima.minusDays(2), 7000);
+        when(resumenes.findByIdDispositivo_IdAndFecha(2L, fechaLima)).thenReturn(Optional.empty());
+        when(resumenes.findFirstByIdDispositivo_IdAndFechaBeforeOrderByFechaDesc(2L, fechaLima))
+                .thenReturn(Optional.of(anterior));
+        EventoPacienteDTO dtoAnterior = servicio.listarEventosWearable(1L).get(0);
+        assertEquals("MEDIA", dtoAnterior.getNivelActividad());
+        assertEquals(anterior.getFecha(), dtoAnterior.getFechaResumenActividad());
+
+        when(resumenes.findFirstByIdDispositivo_IdAndFechaBeforeOrderByFechaDesc(2L, fechaLima))
+                .thenReturn(Optional.empty());
+        EventoPacienteDTO dtoSinResumen = servicio.listarEventosWearable(1L).get(0);
+        assertNull(dtoSinResumen.getNivelActividad());
+        assertNull(dtoSinResumen.getFechaResumenActividad());
+    }
+
+    private ResumenWearableDiario resumen(LocalDate fecha, int pasos) {
+        var resumen = new ResumenWearableDiario();
+        resumen.setFecha(fecha);
+        resumen.setPasos(pasos);
+        resumen.setMinutosSueno((short) 480);
+        return resumen;
     }
 
     private EventoWearable evento(Long id, EstadoConfirmacionEventos estado) {

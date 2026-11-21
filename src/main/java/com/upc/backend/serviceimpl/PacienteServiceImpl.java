@@ -15,11 +15,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
 @Service
 public class PacienteServiceImpl implements PacienteService {
+
+    private static final ZoneId ZONA_LIMA = ZoneId.of("America/Lima");
 
     @Autowired
     private PacienteRepositorio pacienteRepositorio;
@@ -192,6 +196,13 @@ public class PacienteServiceImpl implements PacienteService {
                         evento.getFechaHoraInicio().toLocalDate().minusDays(1))
                 .orElse(null);
         Double horasSueno = resumenPrevio == null ? null : resumenPrevio.getMinutosSueno() / 60.0;
+        Long dispositivoId = evento.getIdDispositivo().getId();
+        LocalDate fechaEventoLima = evento.getFechaHoraInicio().atZoneSameInstant(ZONA_LIMA).toLocalDate();
+        ResumenWearableDiario resumenActividad = resumenRepositorio
+                .findByIdDispositivo_IdAndFecha(dispositivoId, fechaEventoLima)
+                .orElseGet(() -> resumenRepositorio
+                        .findFirstByIdDispositivo_IdAndFechaBeforeOrderByFechaDesc(dispositivoId, fechaEventoLima)
+                        .orElse(null));
         Long duracion = Duration.between(evento.getFechaHoraInicio(), evento.getFechaHoraFin()).toMinutes();
         EventoPacienteDTO dto = new EventoPacienteDTO();
         dto.setEventoId(evento.getId());
@@ -201,6 +212,11 @@ public class PacienteServiceImpl implements PacienteService {
         dto.setTiempoVariacion(duracion);
         dto.setFrecuenciaCardiacaMaxima(maxima);
         dto.setHorasSuenoPrevio(horasSueno);
+        if (resumenActividad != null) {
+            int pasos = resumenActividad.getPasos();
+            dto.setNivelActividad(pasos < 5000 ? "BAJA" : pasos < 10000 ? "MEDIA" : "ALTA");
+            dto.setFechaResumenActividad(resumenActividad.getFecha());
+        }
         dto.setEstadoConfirmacion(evento.getEstadoConfirmacion() == null
                 ? null : evento.getEstadoConfirmacion().name());
         dto.setContextoPaciente(evento.getContextoPaciente());
