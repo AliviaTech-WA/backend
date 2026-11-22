@@ -220,7 +220,6 @@ public class PacienteServiceImpl implements PacienteService {
         dto.setEstadoConfirmacion(evento.getEstadoConfirmacion() == null
                 ? null : evento.getEstadoConfirmacion().name());
         dto.setContextoPaciente(evento.getContextoPaciente());
-        dto.setComentario(evento.getContextoPaciente());
         dto.setFechaRespuesta(evento.getFechaRespuesta());
         dto.setDescripcionVariacion(evento.getDescripcionVariacion());
         return dto;

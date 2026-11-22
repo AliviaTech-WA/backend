@@ -25,7 +25,6 @@ public class EventoPacienteDTO {
     private String estadoConfirmacion;
     private String contextoPaciente;
     private Long tiempoVariacion;
-    private String comentario;
     private OffsetDateTime fechaRespuesta;
     private String descripcionVariacion;
 }

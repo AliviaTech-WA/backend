@@ -15,6 +15,7 @@ import com.upc.backend.security.services.AutorizacionService;
 import com.upc.backend.serviceimpl.PacienteServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -59,7 +60,10 @@ class EventoWearableConsultaTest {
         assertEquals("NO", resultado.get(2).getEstadoConfirmacion());
         assertEquals(15L, resultado.get(0).getDuracionMinutos());
         assertEquals(15L, resultado.get(0).getTiempoVariacion());
-        assertEquals("contexto", resultado.get(0).getComentario());
+        assertEquals("contexto", resultado.get(0).getContextoPaciente());
+        String json = new ObjectMapper().writeValueAsString(resultado.get(0));
+        assertTrue(json.contains("\"contextoPaciente\":\"contexto\""));
+        assertFalse(json.contains("\"comentario\""));
         assertNull(resultado.get(0).getNivelActividad());
         assertNull(resultado.get(0).getFechaResumenActividad());
         verify(eventos, never()).findByIdDispositivo_IdPaciente_IdAndEstadoConfirmacionOrderByFechaHoraInicioDesc(

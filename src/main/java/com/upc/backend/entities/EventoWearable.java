@@ -43,6 +43,4 @@ public class EventoWearable {
 
     @Column(name = "contexto_paciente", length = Integer.MAX_VALUE)
     private String contextoPaciente;
-
-
 }
