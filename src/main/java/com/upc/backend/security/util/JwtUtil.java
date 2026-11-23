@@ -3,7 +3,6 @@ package com.upc.backend.security.util;
 import com.upc.backend.security.entities.UsuarioPrincipal;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,12 +32,12 @@ public class JwtUtil {
     public String generateToken(UsuarioPrincipal principal) {
         Date ahora = new Date();
         return Jwts.builder()
-                .setSubject(principal.getUsername())
+                .subject(principal.getUsername())
                 .claim("usuarioId", principal.getId())
                 .claim("rol", principal.getRol())
-                .setIssuedAt(ahora)
-                .setExpiration(new Date(ahora.getTime() + expirationMs))
-                .signWith(key, SignatureAlgorithm.HS512)
+                .issuedAt(ahora)
+                .expiration(new Date(ahora.getTime() + expirationMs))
+                .signWith(key, Jwts.SIG.HS512)
                 .compact();
     }
 
@@ -52,14 +51,14 @@ public class JwtUtil {
     }
 
     private <T> T extractClaim(String token, Function<Claims, T> resolver) {
-        Claims claims = Jwts.parserBuilder().setSigningKey(key).build()
-                .parseClaimsJws(token).getBody();
+        Claims claims = Jwts.parser().verifyWith(key).build()
+                .parseSignedClaims(token).getPayload();
         return resolver.apply(claims);
     }
 
     private SecretKey buildKey(String configuredSecret) {
         if (configuredSecret == null || configuredSecret.isBlank()) {
-            return Keys.secretKeyFor(SignatureAlgorithm.HS512);
+            return Jwts.SIG.HS512.key().build();
         }
         byte[] source;
         try {

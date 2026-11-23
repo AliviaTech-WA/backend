@@ -7,6 +7,7 @@ import com.upc.backend.exceptions.ConflictException;
 import com.upc.backend.exceptions.InvalidRequestException;
 import com.upc.backend.exceptions.ResourceNotFoundException;
 import com.upc.backend.repositories.*;
+import com.upc.backend.security.services.AutorizacionService;
 import com.upc.backend.services.PacienteService;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,11 +15,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
 @Service
 public class PacienteServiceImpl implements PacienteService {
+
+    private static final ZoneId ZONA_LIMA = ZoneId.of("America/Lima");
 
     @Autowired
     private PacienteRepositorio pacienteRepositorio;
@@ -52,6 +57,9 @@ public class PacienteServiceImpl implements PacienteService {
 
     @Autowired
     private ResumenWearableDiarioRepositorio resumenRepositorio;
+
+    @Autowired
+    private AutorizacionService autorizacionService;
 
     @Override
     @Transactional(readOnly = true)
@@ -166,13 +174,15 @@ public class PacienteServiceImpl implements PacienteService {
 
     @Override
     @Transactional(readOnly = true)
-    // HU27 | END15: el psicólogo solo ve los eventos que el paciente confirmó como episodio.
-    public List<EventoPacienteDTO> listarEpisodiosConfirmados(Long pacienteId) {
+    // HU12, HU16, HU17 y HU27: el paciente ve todos los eventos; el psicologo solo los confirmados.
+    public List<EventoPacienteDTO> listarEventosWearable(Long pacienteId) {
         buscarPaciente(pacienteId);
-        return eventoRepositorio
-                .findByIdDispositivo_IdPaciente_IdAndEstadoConfirmacionOrderByFechaHoraInicioDesc(
+        boolean psicologo = "PSICOLOGO".equals(autorizacionService.principalActual().getRol());
+        List<EventoWearable> eventos = psicologo
+                ? eventoRepositorio.findByIdDispositivo_IdPaciente_IdAndEstadoConfirmacionOrderByFechaHoraInicioDesc(
                         pacienteId, EstadoConfirmacionEventos.SI)
-                .stream().map(this::convertirEvento).toList();
+                : eventoRepositorio.findByIdDispositivo_IdPaciente_IdOrderByFechaHoraInicioDesc(pacienteId);
+        return eventos.stream().map(this::convertirEvento).toList();
     }
 
     // HU27: agrega la frecuencia máxima del episodio y el sueño de la noche anterior.
@@ -186,9 +196,33 @@ public class PacienteServiceImpl implements PacienteService {
                         evento.getFechaHoraInicio().toLocalDate().minusDays(1))
                 .orElse(null);
         Double horasSueno = resumenPrevio == null ? null : resumenPrevio.getMinutosSueno() / 60.0;
-        return new EventoPacienteDTO(evento.getId(), evento.getFechaHoraInicio(), evento.getFechaHoraFin(),
-                Duration.between(evento.getFechaHoraInicio(), evento.getFechaHoraFin()).toMinutes(),
-                maxima, horasSueno, null, evento.getEstadoConfirmacion().name(), evento.getContextoPaciente());
+        Long dispositivoId = evento.getIdDispositivo().getId();
+        LocalDate fechaEventoLima = evento.getFechaHoraInicio().atZoneSameInstant(ZONA_LIMA).toLocalDate();
+        ResumenWearableDiario resumenActividad = resumenRepositorio
+                .findByIdDispositivo_IdAndFecha(dispositivoId, fechaEventoLima)
+                .orElseGet(() -> resumenRepositorio
+                        .findFirstByIdDispositivo_IdAndFechaBeforeOrderByFechaDesc(dispositivoId, fechaEventoLima)
+                        .orElse(null));
+        Long duracion = Duration.between(evento.getFechaHoraInicio(), evento.getFechaHoraFin()).toMinutes();
+        EventoPacienteDTO dto = new EventoPacienteDTO();
+        dto.setEventoId(evento.getId());
+        dto.setFechaHoraInicio(evento.getFechaHoraInicio());
+        dto.setFechaHoraFin(evento.getFechaHoraFin());
+        dto.setDuracionMinutos(duracion);
+        dto.setTiempoVariacion(duracion);
+        dto.setFrecuenciaCardiacaMaxima(maxima);
+        dto.setHorasSuenoPrevio(horasSueno);
+        if (resumenActividad != null) {
+            int pasos = resumenActividad.getPasos();
+            dto.setNivelActividad(pasos < 5000 ? "BAJA" : pasos < 10000 ? "MEDIA" : "ALTA");
+            dto.setFechaResumenActividad(resumenActividad.getFecha());
+        }
+        dto.setEstadoConfirmacion(evento.getEstadoConfirmacion() == null
+                ? null : evento.getEstadoConfirmacion().name());
+        dto.setContextoPaciente(evento.getContextoPaciente());
+        dto.setFechaRespuesta(evento.getFechaRespuesta());
+        dto.setDescripcionVariacion(evento.getDescripcionVariacion());
+        return dto;
     }
 
     // Infraestructura compartida de paciente: centraliza la búsqueda y la respuesta 404.

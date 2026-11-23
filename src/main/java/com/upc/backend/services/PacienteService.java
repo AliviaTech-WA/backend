@@ -24,6 +24,6 @@ public interface PacienteService {
     // HU21 | END30: crea o actualiza el contacto único.
     ContactoEmergenciaResponseDTO guardarContacto(Long pacienteId, GuardarContactoEmergenciaRequestDTO request);
 
-    // HU27 | END15: episodios confirmados del paciente para el psicólogo.
-    List<EventoPacienteDTO> listarEpisodiosConfirmados(Long pacienteId);
+    // HU12, HU16, HU17 y HU27: eventos visibles para el paciente o su psicologo.
+    List<EventoPacienteDTO> listarEventosWearable(Long pacienteId);
 }
