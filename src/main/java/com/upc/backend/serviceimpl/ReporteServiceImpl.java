@@ -24,7 +24,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -33,6 +33,7 @@ import java.util.List;
 @Service
 // HU32 y HU33: calcula reportes generales y reutiliza esos datos para el PDF.
 public class ReporteServiceImpl implements ReporteService {
+    private static final ZoneId ZONA_LIMA = ZoneId.of("America/Lima");
     private final PsicologoRepositorio psicologoRepositorio;
     private final SeguimientoRepositorio seguimientoRepositorio;
     private final RegistroBienestarRepositorio registroRepositorio;
@@ -55,13 +56,16 @@ public class ReporteServiceImpl implements ReporteService {
         if (!psicologoRepositorio.existsById(psicologoId)) {
             throw new ResourceNotFoundException("No se encontró el psicólogo con ID " + psicologoId + ".");
         }
-        LocalDate hasta = fechaHasta == null ? LocalDate.now() : fechaHasta;
+        LocalDate hasta = fechaHasta == null ? LocalDate.now(ZONA_LIMA) : fechaHasta;
         LocalDate desde = fechaDesde == null ? hasta.minusDays(27) : fechaDesde;
+
         if (hasta.isBefore(desde)) {
             throw new InvalidRequestException("fechaHasta no puede ser anterior a fechaDesde.");
         }
-        OffsetDateTime desdeTs = desde.atStartOfDay().atOffset(ZoneOffset.UTC);
-        OffsetDateTime hastaTs = hasta.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC).minusNanos(1);
+        // HU32 y HU33: límites del periodo según la hora de Perú.
+        OffsetDateTime desdeTs = desde.atStartOfDay(ZONA_LIMA).toOffsetDateTime();
+
+        OffsetDateTime hastaTs = hasta.plusDays(1).atStartOfDay(ZONA_LIMA).minusNanos(1).toOffsetDateTime();
         List<Seguimiento> seguimientos = seguimientoRepositorio.findByIdPsicologo_IdAndFechaFinIsNull(psicologoId);
         List<PacienteDatos> pacientes = new ArrayList<>();
         for (Seguimiento seguimiento : seguimientos) {
@@ -87,11 +91,11 @@ public class ReporteServiceImpl implements ReporteService {
             LocalDate inicioSemana = desde.plusDays(i * 7L);
             LocalDate finSemana = inicioSemana.plusDays(6).isAfter(hasta) ? hasta : inicioSemana.plusDays(6);
             long registrosSemana = pacientes.stream().flatMap(p -> p.registros().stream())
-                    .filter(r -> !r.getFechaHora().toLocalDate().isBefore(inicioSemana)
-                            && !r.getFechaHora().toLocalDate().isAfter(finSemana)).count();
+                    .filter(r -> !r.getFechaHora().atZoneSameInstant(ZONA_LIMA).toLocalDate().isBefore(inicioSemana)
+                            && !r.getFechaHora().atZoneSameInstant(ZONA_LIMA).toLocalDate().isAfter(finSemana)).count();
             long episodiosSemana = pacientes.stream().flatMap(p -> p.episodios().stream())
-                    .filter(e -> !e.getFechaHoraInicio().toLocalDate().isBefore(inicioSemana)
-                            && !e.getFechaHoraInicio().toLocalDate().isAfter(finSemana)).count();
+                    .filter(e -> !e.getFechaHoraInicio().atZoneSameInstant(ZONA_LIMA).toLocalDate().isBefore(inicioSemana)
+                            && !e.getFechaHoraInicio().atZoneSameInstant(ZONA_LIMA).toLocalDate().isAfter(finSemana)).count();
             long activos = seguimientos.stream().filter(s -> !s.getFechaInicio().isAfter(finSemana)).count();
             actividad.add(new ReporteGeneralDTO.ActividadSemanalDTO(i + 1, registrosSemana, episodiosSemana));
             activosSemana.add(new ReporteGeneralDTO.PacientesActivosSemanaDTO(i + 1, activos));

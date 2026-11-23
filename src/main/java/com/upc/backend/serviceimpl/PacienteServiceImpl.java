@@ -191,13 +191,18 @@ public class PacienteServiceImpl implements PacienteService {
                 evento.getIdDispositivo().getId(), evento.getFechaHoraInicio(), evento.getFechaHoraFin());
         Short maxima = lecturas.stream().map(LecturaWearable::getFrecuenciaCardiaca)
                 .max(Short::compareTo).orElse(null);
+        LocalDate fechaEventoLima = evento.getFechaHoraInicio()
+                .atZoneSameInstant(ZONA_LIMA)
+                .toLocalDate();
         ResumenWearableDiario resumenPrevio = resumenRepositorio
-                .findByIdDispositivo_IdAndFecha(evento.getIdDispositivo().getId(),
-                        evento.getFechaHoraInicio().toLocalDate().minusDays(1))
+                .findByIdDispositivo_IdAndFecha(
+                        evento.getIdDispositivo().getId(),
+                        fechaEventoLima.minusDays(1))
                 .orElse(null);
-        Double horasSueno = resumenPrevio == null ? null : resumenPrevio.getMinutosSueno() / 60.0;
+        Double horasSueno = resumenPrevio == null
+                ? null
+                : resumenPrevio.getMinutosSueno() / 60.0;
         Long dispositivoId = evento.getIdDispositivo().getId();
-        LocalDate fechaEventoLima = evento.getFechaHoraInicio().atZoneSameInstant(ZONA_LIMA).toLocalDate();
         ResumenWearableDiario resumenActividad = resumenRepositorio
                 .findByIdDispositivo_IdAndFecha(dispositivoId, fechaEventoLima)
                 .orElseGet(() -> resumenRepositorio
