@@ -175,4 +175,14 @@ public class PacienteController {
     public ResponseEntity<List<EventoPacienteDTO>> listarEventosWearable(@PathVariable Long pacienteId) {
         return ResponseEntity.ok(pacienteService.listarEventosWearable(pacienteId));
     }
+
+    @GetMapping("/{pacienteId}/wearable")
+    @PreAuthorize("@autorizacionService.puedeAccederPaciente(#pacienteId)")
+    // HU26: permite consultar los datos del wearable mediante el ID del paciente.
+    // El paciente o su psicólogo responsable pueden acceder a las métricas.
+    public ResponseEntity<DatosWearableDTO> consultarWearable(@PathVariable Long pacienteId) {
+        return ResponseEntity.ok(dispositivoService.consultarDatosPorPaciente(pacienteId)
+        );
+    }
+
 }

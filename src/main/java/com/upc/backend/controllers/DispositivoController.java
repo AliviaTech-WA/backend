@@ -1,18 +1,17 @@
 package com.upc.backend.controllers;
 
-import com.upc.backend.dtos.DatosWearableDTO;
 import com.upc.backend.dtos.SincronizacionWearableRequestDTO;
 import com.upc.backend.dtos.SincronizacionWearableResponseDTO;
 import com.upc.backend.services.DispositivoService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/v1/dispositivos")
-// HU11, HU13 y HU26: recibe sincronizaciones y expone los datos consolidados del wearable.
+// HU11, HU13: recibe sincronizaciones y expone los datos consolidados del wearable.
 public class DispositivoController {
     private final DispositivoService dispositivoService;
 
@@ -21,17 +20,11 @@ public class DispositivoController {
     }
 
     @PostMapping("/{dispositivoId}/sincronizaciones")
-    // HU11 y apoyo parcial a HU13 | END10: almacena la sincronización; la detección automática no está en esta cadena.
-    public ResponseEntity<SincronizacionWearableResponseDTO> sincronizar(
-            @PathVariable Long dispositivoId,
-            @Valid @RequestBody SincronizacionWearableRequestDTO request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(dispositivoService.sincronizar(dispositivoId, request));
-    }
-
-    @GetMapping("/{dispositivoId}/lecturas")
     @PreAuthorize("@autorizacionService.puedeAccederDispositivo(#dispositivoId)")
-    // HU26 | END11: consulta métricas, evolución y lecturas recientes del wearable.
-    public ResponseEntity<DatosWearableDTO> consultarDatos(@PathVariable Long dispositivoId) {
-        return ResponseEntity.ok(dispositivoService.consultarDatos(dispositivoId));
+    // HU11 | END10: recibe y almacena las lecturas del wearable.
+    // HU13: procesa las lecturas para detectar variaciones superiores a 110 lpm.
+    // Seguridad: permite sincronizar únicamente dispositivos autorizados.
+    public ResponseEntity<SincronizacionWearableResponseDTO> sincronizar(@PathVariable Long dispositivoId, @Valid @RequestBody SincronizacionWearableRequestDTO request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(dispositivoService.sincronizar(dispositivoId, request));
     }
 }

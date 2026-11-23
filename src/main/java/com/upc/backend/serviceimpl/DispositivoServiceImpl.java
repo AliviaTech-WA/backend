@@ -163,6 +163,24 @@ public class DispositivoServiceImpl implements DispositivoService {
 
     @Override
     @Transactional(readOnly = true)
+    // HU26: busca el dispositivo activo asociado al paciente.
+    // Reutiliza consultarDatos() para devolver las métricas sin duplicar cálculos.
+    public DatosWearableDTO consultarDatosPorPaciente(Long pacienteId) {
+
+        Dispositivo dispositivo = dispositivoRepositorio
+                .findFirstByIdPaciente_IdAndEstadoIgnoreCaseAndFechaRetiroIsNull(
+                        pacienteId, "ACTIVO"
+                )
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "El paciente no tiene un dispositivo activo."
+                ));
+
+        return consultarDatos(dispositivo.getId());
+    }
+
+
+    @Override
+    @Transactional(readOnly = true)
     // HU26 | END11: calcula promedios, evolución de siete días y lecturas recientes.
     public DatosWearableDTO consultarDatos(Long dispositivoId) {
         buscar(dispositivoId);

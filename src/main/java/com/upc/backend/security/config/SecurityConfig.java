@@ -55,7 +55,6 @@ public class SecurityConfig {
                                 "/api/v1/activaciones-pacientes",
                                 "/api/v1/autenticacion/iniciar-sesion",
                                 "/api/v1/recuperaciones-contrasena/**",
-                                "/api/v1/dispositivos/*/sincronizaciones",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**")
