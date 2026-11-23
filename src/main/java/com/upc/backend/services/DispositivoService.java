@@ -15,4 +15,6 @@ public interface DispositivoService {
     ConsultaDispositivoAsignado renombrarDispositivoAsignado(String alias, Long pacienteId);
     // HU26 | END11: métricas, evolución de siete días y lecturas recientes.
     DatosWearableDTO consultarDatos(Long dispositivoId);
+    // HU26 | END11: mismos datos a partir del paciente, usando su dispositivo activo.
+    DatosWearableDTO consultarDatosPorPaciente(Long pacienteId);
 }
