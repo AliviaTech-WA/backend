@@ -1,13 +1,11 @@
 package com.upc.backend.controllers;
 
-import com.upc.backend.dtos.DatosWearableDTO;
 import com.upc.backend.dtos.SincronizacionWearableRequestDTO;
 import com.upc.backend.dtos.SincronizacionWearableResponseDTO;
 import com.upc.backend.services.DispositivoService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -21,17 +19,11 @@ public class DispositivoController {
     }
 
     @PostMapping("/{dispositivoId}/sincronizaciones")
-    // HU11 y apoyo parcial a HU13 | END10: almacena la sincronización; la detección automática no está en esta cadena.
+    // HU11 y apoyo a HU13 | END10:  recibe y almacena las lecturas del wearable.
+    //El servicio procesa las nuevas lecturas para detectar posibles variaciones.
     public ResponseEntity<SincronizacionWearableResponseDTO> sincronizar(
             @PathVariable Long dispositivoId,
             @Valid @RequestBody SincronizacionWearableRequestDTO request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(dispositivoService.sincronizar(dispositivoId, request));
-    }
-
-    @GetMapping("/{dispositivoId}/lecturas")
-    @PreAuthorize("@autorizacionService.puedeAccederDispositivo(#dispositivoId)")
-    // HU26 | END11: consulta métricas, evolución y lecturas recientes del wearable.
-    public ResponseEntity<DatosWearableDTO> consultarDatos(@PathVariable Long dispositivoId) {
-        return ResponseEntity.ok(dispositivoService.consultarDatos(dispositivoId));
     }
 }
