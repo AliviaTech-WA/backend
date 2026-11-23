@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import jakarta.validation.constraints.Pattern;
 
 @Setter
 @Getter
@@ -16,7 +17,7 @@ import lombok.Setter;
 public class CrearPsicologoRequestDTO {
 
     @NotBlank
-    @Size(max = 8)
+    @Pattern(regexp = "\\d{8}", message = "El DNI debe contener exactamente 8 dígitos")
     private String dni;
 
     @NotBlank
