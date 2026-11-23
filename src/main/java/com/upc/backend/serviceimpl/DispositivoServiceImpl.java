@@ -163,21 +163,12 @@ public class DispositivoServiceImpl implements DispositivoService {
 
     @Override
     @Transactional(readOnly = true)
-    // HU26: busca el dispositivo activo asociado al paciente.
-    // Reutiliza consultarDatos() para devolver las métricas sin duplicar cálculos.
+    // HU26 | END11: el psicólogo consulta el wearable desde el paciente sin conocer el ID del dispositivo.
     public DatosWearableDTO consultarDatosPorPaciente(Long pacienteId) {
-
-        Dispositivo dispositivo = dispositivoRepositorio
-                .findFirstByIdPaciente_IdAndEstadoIgnoreCaseAndFechaRetiroIsNull(
-                        pacienteId, "ACTIVO"
-                )
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "El paciente no tiene un dispositivo activo."
-                ));
-
+        Dispositivo dispositivo = dispositivoRepositorio.findFirstByIdPaciente_IdAndFechaRetiroIsNull(pacienteId)
+                .orElseThrow(() -> new ResourceNotFoundException("El paciente no tiene un dispositivo activo."));
         return consultarDatos(dispositivo.getId());
     }
-
 
     @Override
     @Transactional(readOnly = true)

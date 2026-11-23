@@ -178,11 +178,8 @@ public class PacienteController {
 
     @GetMapping("/{pacienteId}/wearable")
     @PreAuthorize("@autorizacionService.puedeAccederPaciente(#pacienteId)")
-    // HU26: permite consultar los datos del wearable mediante el ID del paciente.
-    // El paciente o su psicólogo responsable pueden acceder a las métricas.
+    // HU26 | END11: datos del wearable del dispositivo activo del paciente.
     public ResponseEntity<DatosWearableDTO> consultarWearable(@PathVariable Long pacienteId) {
-        return ResponseEntity.ok(dispositivoService.consultarDatosPorPaciente(pacienteId)
-        );
+        return ResponseEntity.ok(dispositivoService.consultarDatosPorPaciente(pacienteId));
     }
-
 }
