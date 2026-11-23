@@ -17,10 +17,11 @@ services:
   api:
     build: .
     environment:
-      DB_URL: jdbc:postgresql://db:5432/BD_AliviaTech
+      DB_URL: ${DB_URL:-jdbc:postgresql://db:5432/BD_AliviaTech}
       DB_USER: ${DB_USER:?Define DB_USER en .env}
       DB_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en .env}
       DDL_AUTO: ${DDL_AUTO:-update}
+      SQL_INIT_MODE: ${SQL_INIT_MODE:-always}
       JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env}
       ALIVIATECH_JWT_EXPIRATION_MS: ${ALIVIATECH_JWT_EXPIRATION_MS:-1200000}
       ALIVIATECH_FRONTEND_ACTIVACION_URL: ${ALIVIATECH_FRONTEND_ACTIVACION_URL:-http://localhost:4200/activar-cuenta}

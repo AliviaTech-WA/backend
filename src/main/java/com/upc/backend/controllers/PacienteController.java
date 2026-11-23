@@ -136,26 +136,6 @@ public class PacienteController {
         return ResponseEntity.ok(response);
     }
     
-    //HU17: Consultar eventos respondidos del paciente
-    @GetMapping("/{pacienteId}/eventos/historial")
-    @PreAuthorize("@autorizacionService.puedeAccederPaciente(#pacienteId)")
-    public ResponseEntity<List<EventoWearableResponseDTO>> obtenerEventosRespondidos(
-            @PathVariable Long pacienteId) {
-
-        List<EventoWearableResponseDTO> response = eventoWearableService.obtenerEventosRespondidos(pacienteId);
-        return ResponseEntity.ok(response);
-    }
-
-    //HU16: Una vez respondido el evento se consulta los eventos pendientes del paciente, para actualizar el front.
-    @GetMapping("/{pacienteId}/eventos/pendientes")
-    @PreAuthorize("@autorizacionService.esMismoUsuario(#pacienteId)")
-    public ResponseEntity<List<EventoWearableResponseDTO>> obtenerEventosPendientes(
-            @PathVariable Long pacienteId) {
-
-        List<EventoWearableResponseDTO> response = eventoWearableService.obtenerEventosPendientes(pacienteId);
-        return ResponseEntity.ok(response);
-    }
-
     @GetMapping("/{pacienteId}/perfil")
     @PreAuthorize("@autorizacionService.esMismoUsuario(#pacienteId)")
     // HU21 | END28: consulta los datos personales y el contacto de emergencia.
@@ -189,11 +169,11 @@ public class PacienteController {
         return ResponseEntity.ok(seguimientoConsultaService.consultarResumen(pacienteId));
     }
 
-    @GetMapping("/{pacienteId}/eventos/confirmados")
-    @PreAuthorize("hasRole('PSICOLOGO') and @autorizacionService.puedeAccederPaciente(#pacienteId)")
-    // HU27 | END15: lista los episodios confirmados del paciente para el psicólogo responsable.
-    public ResponseEntity<List<EventoPacienteDTO>> listarEpisodiosConfirmados(@PathVariable Long pacienteId) {
-        return ResponseEntity.ok(pacienteService.listarEpisodiosConfirmados(pacienteId));
+    @GetMapping("/{pacienteId}/eventos-wearable")
+    @PreAuthorize("@autorizacionService.puedeAccederPaciente(#pacienteId)")
+    // HU12, HU16, HU17 y HU27: el paciente consulta todos los estados; el psicologo solo los confirmados.
+    public ResponseEntity<List<EventoPacienteDTO>> listarEventosWearable(@PathVariable Long pacienteId) {
+        return ResponseEntity.ok(pacienteService.listarEventosWearable(pacienteId));
     }
 
     @GetMapping("/{pacienteId}/wearable")

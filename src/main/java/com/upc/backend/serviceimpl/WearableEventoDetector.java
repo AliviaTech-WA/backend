@@ -47,12 +47,13 @@ public class WearableEventoDetector {
 
         for (LecturaWearable lectura : ordenadas) {
             boolean alta = lectura.getFrecuenciaCardiaca() > UMBRAL_ALTO;
-            boolean anteriorAlta = anterior != null
-                    && anterior.getFrecuenciaCardiaca() > UMBRAL_ALTO;
-            if (alta && (!anteriorAlta || episodio == null)) {
+            boolean anteriorAltaConsecutiva = anterior != null
+                    && anterior.getFrecuenciaCardiaca() > UMBRAL_ALTO
+                    && lectura.getFechaHora().isEqual(anterior.getFechaHora().plusMinutes(15));
+            if (alta && (!anteriorAltaConsecutiva || episodio == null)) {
                 episodio = crearEvento(dispositivo, lectura);
             } else if (alta) {
-                episodio.setFechaHoraFin(lectura.getFechaHora());
+                episodio.setFechaHoraFin(lectura.getFechaHora().plusMinutes(15));
                 eventoRepositorio.save(episodio);
             } else {
                 episodio = null;
@@ -67,7 +68,7 @@ public class WearableEventoDetector {
             return null;
         }
         return eventoRepositorio.findFirstByIdDispositivo_IdOrderByFechaHoraInicioDesc(dispositivo.getId())
-                .filter(evento -> !evento.getFechaHoraFin().isBefore(anterior.getFechaHora()))
+                .filter(evento -> evento.getFechaHoraFin().isEqual(anterior.getFechaHora().plusMinutes(15)))
                 .orElse(null);
     }
 
@@ -75,7 +76,7 @@ public class WearableEventoDetector {
         EventoWearable evento = new EventoWearable();
         evento.setIdDispositivo(dispositivo);
         evento.setFechaHoraInicio(lectura.getFechaHora());
-        evento.setFechaHoraFin(lectura.getFechaHora());
+        evento.setFechaHoraFin(lectura.getFechaHora().plusMinutes(15));
         evento.setDescripcionVariacion(DESCRIPCION);
 
         //esta parte es para que el paciente reciba la notificación de que tiene un evento pendiente por responder
