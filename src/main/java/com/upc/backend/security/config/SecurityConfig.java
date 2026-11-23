@@ -52,12 +52,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/v1/psicologos",
-                                "/api/v1/activaciones-pacientes",
-                                "/api/v1/autenticacion/iniciar-sesion",
-                                "/api/v1/recuperaciones-contrasena/**",
-                                "/swagger-ui.html",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**")
+                        "/api/v1/activaciones-pacientes",
+                        "/api/v1/autenticacion/iniciar-sesion",
+                        "/api/v1/recuperaciones-contrasena/**",
+                        "/swagger-ui.html",
+                        "/swagger-ui/**",
+                        "/v3/api-docs/**")
                         .permitAll()
                         .anyRequest().authenticated());
         http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
